@@ -1,0 +1,187 @@
+import { useState } from 'react'
+import { ArrowLeft, ArrowRight } from 'lucide-react'
+import { clsx } from 'clsx'
+import { Button } from '../../common/Button'
+import { Tooltip } from '../../common/Tooltip'
+import { useCompetencyLevel } from '@/hooks/useCompetencyLevel'
+import { analysisApi } from '@/api/analysis'
+import type { ModelType } from '@/types'
+import type { WizardContext, WizardEvent } from '../WizardMachine'
+
+interface ModelOption {
+  type: ModelType
+  name: string
+  shortDesc: string
+}
+
+const modelOptions: ModelOption[] = [
+  {
+    type: '1PL',
+    name: 'One-Parameter (Rasch)',
+    shortDesc: 'Estimates difficulty only',
+  },
+  {
+    type: '2PL',
+    name: 'Two-Parameter',
+    shortDesc: 'Estimates difficulty & discrimination',
+  },
+  {
+    type: '3PL',
+    name: 'Three-Parameter',
+    shortDesc: 'Adds guessing parameter',
+  },
+]
+
+interface ModelSelectionProps {
+  send: (event: WizardEvent) => void
+  context: WizardContext
+}
+
+export function ModelSelection({ send, context }: ModelSelectionProps) {
+  const [selectedModel, setSelectedModel] = useState<ModelType>('2PL')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const { getModelDescription, showAdvancedOptions, isResearcher } = useCompetencyLevel()
+
+  const handleSubmit = async () => {
+    if (!context.project || !context.dataset) return
+
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      const analysis = await analysisApi.create({
+        project_id: context.project.id,
+        dataset_id: context.dataset.id,
+        model_type: selectedModel,
+        name: `${selectedModel} Analysis`,
+      })
+
+      send({ type: 'SELECT_MODEL', modelType: selectedModel })
+
+      const pollStatus = async () => {
+        const status = await analysisApi.getStatus(analysis.id)
+        if (status.status === 'completed') {
+          const fullAnalysis = await analysisApi.get(analysis.id)
+          send({ type: 'ANALYSIS_COMPLETE', analysis: fullAnalysis })
+        } else if (status.status === 'failed') {
+          send({ type: 'ANALYSIS_FAILED', error: status.message || 'Analysis failed' })
+        } else {
+          setTimeout(pollStatus, 2000)
+        }
+      }
+
+      pollStatus()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start analysis')
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" onClick={() => send({ type: 'BACK' })}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back
+        </Button>
+      </div>
+
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-gray-900">Select IRT Model</h2>
+        <p className="mt-2 text-gray-600">
+          Choose the model that best fits your data and research needs
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {modelOptions.map((option) => (
+          <button
+            key={option.type}
+            onClick={() => setSelectedModel(option.type)}
+            className={clsx(
+              'p-6 rounded-xl border-2 text-left transition-all duration-200',
+              'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
+              selectedModel === option.type
+                ? 'border-primary-500 bg-primary-50'
+                : 'border-gray-200 hover:border-primary-300'
+            )}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-gray-900">{option.name}</h3>
+              <Tooltip tooltipKey={option.type.toLowerCase()} content={getModelDescription(option.type)} />
+            </div>
+            <p className="text-sm text-gray-600">{option.shortDesc}</p>
+            <p className="text-sm text-gray-500 mt-3">{getModelDescription(option.type)}</p>
+          </button>
+        ))}
+      </div>
+
+      {showAdvancedOptions && (
+        <details className="bg-gray-50 rounded-lg p-4">
+          <summary className="font-medium text-gray-700 cursor-pointer">
+            Advanced Options
+          </summary>
+          <div className="mt-4 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Estimation Method
+              </label>
+              <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                <option value="MML">Marginal Maximum Likelihood</option>
+                <option value="MAP">Maximum A Posteriori</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Ability Estimation
+              </label>
+              <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                <option value="EAP">Expected A Posteriori (EAP)</option>
+                <option value="MAP">Maximum A Posteriori (MAP)</option>
+                <option value="MLE">Maximum Likelihood (MLE)</option>
+              </select>
+            </div>
+            {isResearcher && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Max Iterations
+                  </label>
+                  <input
+                    type="number"
+                    defaultValue={1000}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Convergence Threshold
+                  </label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    defaultValue={0.0001}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </details>
+      )}
+
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">{error}</div>
+      )}
+
+      <div className="flex justify-end">
+        <Button onClick={handleSubmit} isLoading={isSubmitting}>
+          Run Analysis
+          <ArrowRight className="w-4 h-4 ml-2" />
+        </Button>
+      </div>
+    </div>
+  )
+}

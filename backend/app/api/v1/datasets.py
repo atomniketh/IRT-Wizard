@@ -1,0 +1,187 @@
+import io
+import uuid
+from typing import Any
+
+import pandas as pd
+from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from sqlalchemy import select
+
+from app.api.deps import DbSession, SettingsDep
+from app.models.dataset import Dataset
+from app.schemas.dataset import DatasetRead, DatasetPreview, DatasetUploadResponse
+from app.services.storage import StorageService
+from app.utils.data_validation import validate_response_matrix
+
+router = APIRouter()
+
+
+@router.post("/upload", response_model=DatasetUploadResponse, status_code=status.HTTP_201_CREATED)
+async def upload_dataset(
+    project_id: uuid.UUID,
+    file: UploadFile = File(...),
+    db: DbSession = None,
+    settings: SettingsDep = None,
+) -> Dataset:
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    if not file.filename.lower().endswith((".csv", ".tsv")):
+        raise HTTPException(status_code=400, detail="Only CSV and TSV files are supported")
+
+    content = await file.read()
+    file_size = len(content)
+
+    max_size = settings.max_upload_size_mb * 1024 * 1024
+    if file_size > max_size:
+        raise HTTPException(
+            status_code=400, detail=f"File exceeds maximum size of {settings.max_upload_size_mb}MB"
+        )
+
+    separator = "\t" if file.filename.lower().endswith(".tsv") else ","
+
+    try:
+        df = pd.read_csv(io.BytesIO(content), sep=separator)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse file: {str(e)}")
+
+    validation_result = validate_response_matrix(df)
+
+    storage = StorageService(settings)
+    file_path = await storage.upload_file(content, file.filename, str(project_id))
+
+    item_names = list(df.columns)
+    data_summary = {
+        "mean_scores": df.mean().to_dict() if validation_result["is_valid"] else None,
+        "item_counts": df.sum().to_dict() if validation_result["is_valid"] else None,
+        "missing_count": df.isna().sum().to_dict(),
+    }
+
+    dataset = Dataset(
+        project_id=project_id,
+        name=file.filename,
+        file_path=file_path,
+        original_filename=file.filename,
+        file_size=file_size,
+        row_count=len(df),
+        column_count=len(df.columns),
+        item_names=item_names,
+        data_summary=data_summary,
+        validation_status="valid" if validation_result["is_valid"] else "invalid",
+        validation_errors=validation_result.get("errors"),
+    )
+    db.add(dataset)
+    await db.commit()
+    await db.refresh(dataset)
+    return dataset
+
+
+@router.post("/from-url", response_model=DatasetUploadResponse, status_code=status.HTTP_201_CREATED)
+async def fetch_dataset_from_url(
+    project_id: uuid.UUID,
+    url: str,
+    db: DbSession = None,
+    settings: SettingsDep = None,
+) -> Dataset:
+    import httpx
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, follow_redirects=True)
+            response.raise_for_status()
+            content = response.content
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=400, detail=f"Failed to fetch URL: {str(e)}")
+
+    filename = url.split("/")[-1].split("?")[0]
+    if not filename.lower().endswith((".csv", ".tsv")):
+        filename = filename + ".csv"
+
+    separator = "\t" if filename.lower().endswith(".tsv") else ","
+
+    try:
+        df = pd.read_csv(io.BytesIO(content), sep=separator)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse file: {str(e)}")
+
+    validation_result = validate_response_matrix(df)
+
+    storage = StorageService(settings)
+    file_path = await storage.upload_file(content, filename, str(project_id))
+
+    item_names = list(df.columns)
+    data_summary = {
+        "mean_scores": df.mean().to_dict() if validation_result["is_valid"] else None,
+        "item_counts": df.sum().to_dict() if validation_result["is_valid"] else None,
+        "missing_count": df.isna().sum().to_dict(),
+    }
+
+    dataset = Dataset(
+        project_id=project_id,
+        name=filename,
+        file_path=file_path,
+        original_filename=filename,
+        file_size=len(content),
+        row_count=len(df),
+        column_count=len(df.columns),
+        item_names=item_names,
+        data_summary=data_summary,
+        validation_status="valid" if validation_result["is_valid"] else "invalid",
+        validation_errors=validation_result.get("errors"),
+    )
+    db.add(dataset)
+    await db.commit()
+    await db.refresh(dataset)
+    return dataset
+
+
+@router.get("/{dataset_id}", response_model=DatasetRead)
+async def get_dataset(dataset_id: uuid.UUID, db: DbSession) -> Dataset:
+    result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
+    dataset = result.scalar_one_or_none()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    return dataset
+
+
+@router.get("/{dataset_id}/preview", response_model=DatasetPreview)
+async def preview_dataset(
+    dataset_id: uuid.UUID,
+    db: DbSession,
+    settings: SettingsDep,
+    rows: int = 10,
+) -> dict[str, Any]:
+    result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
+    dataset = result.scalar_one_or_none()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    if not dataset.file_path:
+        raise HTTPException(status_code=400, detail="Dataset has no file")
+
+    storage = StorageService(settings)
+    content = await storage.download_file(dataset.file_path)
+
+    separator = "\t" if dataset.original_filename and ".tsv" in dataset.original_filename else ","
+    df = pd.read_csv(io.BytesIO(content), sep=separator, nrows=rows)
+
+    return {
+        "columns": list(df.columns),
+        "rows": df.to_dict(orient="records"),
+        "total_rows": dataset.row_count or 0,
+        "total_columns": dataset.column_count or 0,
+    }
+
+
+@router.delete("/{dataset_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_dataset(dataset_id: uuid.UUID, db: DbSession, settings: SettingsDep) -> None:
+    result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
+    dataset = result.scalar_one_or_none()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    if dataset.file_path:
+        storage = StorageService(settings)
+        await storage.delete_file(dataset.file_path)
+
+    await db.delete(dataset)
+    await db.commit()
