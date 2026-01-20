@@ -35,6 +35,11 @@ export const tooltips: Record<string, TooltipContent> = {
     educator: "Bayesian Information Criterion. Similar to AIC but stronger penalty for parameters.",
     researcher: "BIC = k*ln(n) - 2ln(L). More conservative than AIC for large samples."
   },
+  log_likelihood: {
+    student: "How well the model explains the data.",
+    educator: "Log-Likelihood measures how probable the data is given the model. Higher (less negative) is better.",
+    researcher: "ln(L) = Σ ln P(x_ij|θ_i, item params). Used to compute AIC/BIC. Higher values indicate better fit."
+  },
   icc: {
     student: "Shows how likely you are to answer correctly at different ability levels.",
     educator: "Item Characteristic Curve showing P(correct) across the ability range.",

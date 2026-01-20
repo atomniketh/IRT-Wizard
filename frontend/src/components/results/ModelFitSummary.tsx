@@ -40,6 +40,7 @@ export function ModelFitSummary({ modelFit, detailed = false }: ModelFitSummaryP
           <div className="bg-white rounded-lg p-4 border border-gray-200">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-gray-600">Log-Likelihood</span>
+              <Tooltip tooltipKey="log_likelihood" />
             </div>
             <p className="text-xl font-semibold text-gray-900">
               {formatNumber(modelFit.log_likelihood)}

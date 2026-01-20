@@ -70,7 +70,7 @@ export function ItemParametersTable({ items, modelType }: ItemParametersTablePro
             >
               <div className="flex items-center space-x-1">
                 <span>{isStudent ? 'Difficulty' : 'b (Difficulty)'}</span>
-                <Tooltip tooltipKey="difficulty" />
+                <Tooltip tooltipKey="difficulty" position="bottom" />
                 <ArrowUpDown className="w-3 h-3" />
               </div>
             </th>
@@ -81,7 +81,7 @@ export function ItemParametersTable({ items, modelType }: ItemParametersTablePro
               >
                 <div className="flex items-center space-x-1">
                   <span>{isStudent ? 'Discrimination' : 'a (Discrimination)'}</span>
-                  <Tooltip tooltipKey="discrimination" />
+                  <Tooltip tooltipKey="discrimination" position="bottom" />
                   <ArrowUpDown className="w-3 h-3" />
                 </div>
               </th>
@@ -93,7 +93,7 @@ export function ItemParametersTable({ items, modelType }: ItemParametersTablePro
               >
                 <div className="flex items-center space-x-1">
                   <span>{isStudent ? 'Guessing' : 'c (Guessing)'}</span>
-                  <Tooltip tooltipKey="guessing" />
+                  <Tooltip tooltipKey="guessing" position="bottom" />
                   <ArrowUpDown className="w-3 h-3" />
                 </div>
               </th>

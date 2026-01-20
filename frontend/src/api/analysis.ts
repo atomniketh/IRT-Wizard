@@ -72,6 +72,6 @@ export const exportsApi = {
   },
 
   downloadPdf: (analysisId: string, type: 'summary' | 'detailed' = 'summary'): string => {
-    return `${apiClient.defaults.baseURL}/exports/${analysisId}/pdf-report?type=${type}`
+    return `${apiClient.defaults.baseURL}/exports/${analysisId}/pdf-report?report_type=${type}`
   },
 }
