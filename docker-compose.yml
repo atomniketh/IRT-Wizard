@@ -1,3 +1,7 @@
+# Ports offset by +1 or +2 to avoid conflicts with AtomicFlow
+# IRT Wizard uses: 5433, 8334, 9334, 8081, 5002, 8002, 3001
+# AtomicFlow uses: 5432, 8333, 9333, 8080, 5001, 8000, 5173
+
 services:
   postgres:
     image: postgres:15-alpine
@@ -8,7 +12,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-irt_user}"]
       interval: 10s
@@ -22,9 +26,9 @@ services:
       - seaweedfs_data:/data
       - ./infrastructure/seaweedfs/s3-config.json:/etc/seaweedfs/s3.json:ro
     ports:
-      - "8333:8333"
-      - "9333:9333"
-      - "8080:8080"
+      - "8334:8333"
+      - "9334:9333"
+      - "8081:8080"
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:9333/cluster/status || exit 1"]
       interval: 10s
@@ -40,7 +44,7 @@ services:
       AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-mlflow}
       AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-mlflow-secret}
     ports:
-      - "5000:5000"
+      - "5002:5000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -57,7 +61,7 @@ services:
       S3_BUCKET: ${S3_BUCKET:-irt-data}
       MLFLOW_TRACKING_URI: http://mlflow:5000
     ports:
-      - "8000:8000"
+      - "8002:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -71,7 +75,7 @@ services:
   frontend:
     build: ./frontend
     ports:
-      - "3000:80"
+      - "3001:80"
     depends_on:
       - backend
 
