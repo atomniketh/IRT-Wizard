@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { clsx } from 'clsx'
 import { Button } from '../../common/Button'
@@ -42,18 +42,15 @@ interface ModelSelectionProps {
 }
 
 export function ModelSelection({ send, context }: ModelSelectionProps) {
-  const { getModelDescription, showAdvancedOptions, isResearcher } = useCompetencyLevel()
+  const { getModelDescription } = useCompetencyLevel()
+
+  const isResearcher = context.competencyLevel === 'researcher'
+  const showAdvancedOptions = isResearcher
 
   const [selectedModel, setSelectedModel] = useState<ModelType>(context.modelType ?? '2PL')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [advancedOpen, setAdvancedOpen] = useState(isResearcher)
-
-  useEffect(() => {
-    if (isResearcher) {
-      setAdvancedOpen(true)
-    }
-  }, [isResearcher])
+  const [advancedOpen, setAdvancedOpen] = useState(true)
 
   const handleSubmit = async () => {
     if (!context.project || !context.dataset) {
