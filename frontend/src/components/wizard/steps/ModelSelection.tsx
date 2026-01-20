@@ -50,7 +50,6 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
   const [selectedModel, setSelectedModel] = useState<ModelType>(context.modelType ?? '2PL')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [advancedOpen, setAdvancedOpen] = useState(true)
 
   const handleSubmit = async () => {
     if (!context.project || !context.dataset) {
@@ -139,15 +138,11 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
       </div>
 
       {showAdvancedOptions && (
-        <details
-          className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4"
-          open={advancedOpen}
-          onToggle={(e) => setAdvancedOpen((e.target as HTMLDetailsElement).open)}
-        >
-          <summary className="font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+          <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-4">
             Advanced Options
-          </summary>
-          <div className="mt-4 space-y-4">
+          </h3>
+          <div className="space-y-4">
             <div>
               <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 <span>Estimation Method</span>
@@ -197,7 +192,7 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
               </>
             )}
           </div>
-        </details>
+        </div>
       )}
 
       {error && (
