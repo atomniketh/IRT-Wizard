@@ -14,7 +14,7 @@ export interface WizardContext {
 export type WizardEvent =
   | { type: 'SELECT_COMPETENCY'; level: CompetencyLevel }
   | { type: 'CREATE_PROJECT'; project: Project }
-  | { type: 'UPLOAD_DATA'; dataset: Dataset }
+  | { type: 'UPLOAD_DATA'; dataset: Dataset; project?: Project }
   | { type: 'VALIDATE_DATA' }
   | { type: 'SELECT_MODEL'; modelType: ModelType; config?: Record<string, unknown> }
   | { type: 'START_ANALYSIS' }
@@ -53,6 +53,7 @@ export const wizardMachine = createMachine({
           target: 'dataPreview',
           actions: assign({
             dataset: ({ event }) => event.dataset,
+            project: ({ context, event }) => event.project ?? context.project,
           }),
         },
         CREATE_PROJECT: {
@@ -69,6 +70,7 @@ export const wizardMachine = createMachine({
         UPLOAD_DATA: {
           actions: assign({
             dataset: ({ event }) => event.dataset,
+            project: ({ context, event }) => event.project ?? context.project,
           }),
         },
         BACK: 'dataUpload',

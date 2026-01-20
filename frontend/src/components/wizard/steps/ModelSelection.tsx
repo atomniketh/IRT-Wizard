@@ -45,7 +45,10 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
   const { getModelDescription, showAdvancedOptions, isResearcher } = useCompetencyLevel()
 
   const handleSubmit = async () => {
-    if (!context.project || !context.dataset) return
+    if (!context.project || !context.dataset) {
+      setError(`Missing required data: ${!context.project ? 'project' : ''} ${!context.dataset ? 'dataset' : ''}`.trim())
+      return
+    }
 
     setIsSubmitting(true)
     setError(null)
