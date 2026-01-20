@@ -34,7 +34,7 @@ export function DataUpload({ send, context }: DataUploadProps) {
         }
 
         const dataset = await datasetsApi.upload(project.id, file)
-        send({ type: 'UPLOAD_DATA', dataset: dataset as any, project })
+        send({ type: 'UPLOAD_DATA', dataset, project })
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Upload failed')
       } finally {
@@ -61,7 +61,7 @@ export function DataUpload({ send, context }: DataUploadProps) {
       }
 
       const dataset = await datasetsApi.fromUrl(project.id, url)
-      send({ type: 'UPLOAD_DATA', dataset: dataset as any, project })
+      send({ type: 'UPLOAD_DATA', dataset, project })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch URL')
     } finally {

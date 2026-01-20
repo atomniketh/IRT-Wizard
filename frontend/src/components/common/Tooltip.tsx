@@ -12,13 +12,11 @@ interface TooltipProps {
 
 export function Tooltip({ content = '', children, tooltipKey, position = 'top' }: TooltipProps) {
   const [isVisible, setIsVisible] = useState(false)
-  const { getTooltip, isStudent } = useCompetencyLevel()
+  const { getTooltip } = useCompetencyLevel()
 
   const tooltipContent = tooltipKey ? getTooltip(tooltipKey) : content
 
   if (!tooltipContent) return <>{children}</>
-
-  const showTooltipOnLoad = isStudent
 
   return (
     <div
@@ -27,7 +25,7 @@ export function Tooltip({ content = '', children, tooltipKey, position = 'top' }
       onMouseLeave={() => setIsVisible(false)}
     >
       {children || <HelpCircle className="w-4 h-4 text-gray-400 dark:text-gray-500 cursor-help" />}
-      {(isVisible || showTooltipOnLoad) && (
+      {isVisible && (
         <div
           className={clsx(
             'absolute z-50 px-3 py-2 text-sm text-white bg-gray-900 rounded-lg shadow-lg max-w-xs',

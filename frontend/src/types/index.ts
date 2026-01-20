@@ -33,6 +33,7 @@ export interface ValidationError {
   type: string
   message: string
   column?: string
+  columns?: string[]
   row?: number
 }
 

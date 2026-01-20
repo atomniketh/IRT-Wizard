@@ -8,19 +8,8 @@ export interface DatasetPreview {
   total_columns: number
 }
 
-export interface DatasetUploadResponse {
-  id: string
-  name: string
-  original_filename: string
-  file_size: number
-  row_count: number
-  column_count: number
-  item_names: string[]
-  validation_status: string
-}
-
 export const datasetsApi = {
-  upload: async (projectId: string, file: File): Promise<DatasetUploadResponse> => {
+  upload: async (projectId: string, file: File): Promise<Dataset> => {
     const formData = new FormData()
     formData.append('file', file)
 
@@ -32,7 +21,7 @@ export const datasetsApi = {
     return response.data
   },
 
-  fromUrl: async (projectId: string, url: string): Promise<DatasetUploadResponse> => {
+  fromUrl: async (projectId: string, url: string): Promise<Dataset> => {
     const response = await apiClient.post(`/datasets/from-url?project_id=${projectId}&url=${encodeURIComponent(url)}`)
     return response.data
   },

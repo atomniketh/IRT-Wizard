@@ -1,8 +1,76 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CheckCircle, AlertTriangle, XCircle, Info } from 'lucide-react'
 import { Button } from '../../common/Button'
 import { datasetsApi, type DatasetPreview as DatasetPreviewType } from '@/api/datasets'
 import type { WizardContext, WizardEvent } from '../WizardMachine'
+import type { ValidationError } from '@/types'
+
+interface IssueInfo {
+  title: string
+  explanation: string
+  fix: string
+  severity: 'error' | 'warning' | 'info'
+}
+
+const issueDetails: Record<string, IssueInfo> = {
+  empty_data: {
+    title: 'Empty Dataset',
+    explanation: 'The uploaded file contains no data rows.',
+    fix: 'Please upload a file with at least one row of response data.',
+    severity: 'error',
+  },
+  insufficient_items: {
+    title: 'Insufficient Items',
+    explanation: 'IRT analysis requires at least 2 binary item columns (containing only 0 and 1 values).',
+    fix: 'Ensure your data has at least 2 columns with binary (0/1) response data. Check that item responses are coded as 0 (incorrect) and 1 (correct).',
+    severity: 'error',
+  },
+  all_missing: {
+    title: 'All Values Missing',
+    explanation: 'One or more columns contain only missing/empty values.',
+    fix: 'Remove or fill in the affected columns. Columns with no data cannot be analyzed.',
+    severity: 'error',
+  },
+  id_columns_detected: {
+    title: 'ID Columns Detected',
+    explanation: 'Columns that appear to be identifiers (IDs, indices) were found and will be automatically excluded from analysis.',
+    fix: 'No action needed. These columns will be ignored during analysis. If a column was incorrectly identified as an ID, rename it to avoid terms like "id", "index", "respondent", "person", or "subject".',
+    severity: 'info',
+  },
+  non_binary_columns: {
+    title: 'Non-Binary Columns Found',
+    explanation: 'Some columns contain values other than 0 and 1. These will be excluded from dichotomous IRT analysis.',
+    fix: 'If these columns should be included, recode them to binary (0/1) format. For polytomous responses (0, 1, 2, ...), polytomous IRT models will be supported in a future version.',
+    severity: 'warning',
+  },
+  insufficient_respondents: {
+    title: 'Low Sample Size',
+    explanation: 'The dataset has fewer than 10 respondents. IRT parameter estimates may be unstable with small samples.',
+    fix: 'For reliable results, collect data from at least 100-200 respondents (preferably 500+ for 3PL models). You can proceed, but interpret results with caution.',
+    severity: 'warning',
+  },
+  no_variance: {
+    title: 'No Variance in Item',
+    explanation: 'One or more items have no variance (all respondents answered the same way).',
+    fix: 'Items with no variance provide no information and may cause estimation problems. Consider removing these items or collecting more diverse response data.',
+    severity: 'warning',
+  },
+  high_missing_rate: {
+    title: 'High Missing Data Rate',
+    explanation: 'More than 50% of item responses are missing.',
+    fix: 'High missing rates can bias parameter estimates. Consider using imputation techniques or collecting more complete data. Missing values will be treated as incorrect (0) during analysis.',
+    severity: 'warning',
+  },
+}
+
+function getIssueInfo(issue: ValidationError): IssueInfo {
+  return issueDetails[issue.type] || {
+    title: 'Unknown Issue',
+    explanation: issue.message,
+    fix: 'Please review your data and try again.',
+    severity: 'warning',
+  }
+}
 
 interface DataPreviewProps {
   send: (event: WizardEvent) => void
@@ -73,34 +141,107 @@ export function DataPreview({ send, context }: DataPreviewProps) {
         </div>
         <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-center">
           <div className="flex items-center justify-center space-x-2">
-            {isValid ? (
-              <CheckCircle className="w-6 h-6 text-green-500" />
+            {!isValid ? (
+              <>
+                <XCircle className="w-6 h-6 text-red-500" />
+                <span className="text-red-700 dark:text-red-400">Issues</span>
+              </>
+            ) : validationErrors.length > 0 ? (
+              <>
+                <AlertTriangle className="w-6 h-6 text-amber-500" />
+                <span className="text-amber-700 dark:text-amber-400">Warnings</span>
+              </>
             ) : (
-              <AlertCircle className="w-6 h-6 text-red-500" />
+              <>
+                <CheckCircle className="w-6 h-6 text-green-500" />
+                <span className="text-green-700 dark:text-green-400">Valid</span>
+              </>
             )}
-            <span className={isValid ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}>
-              {isValid ? 'Valid' : 'Issues'}
-            </span>
           </div>
           <p className="text-sm text-gray-600 dark:text-gray-400">Status</p>
         </div>
       </div>
 
-      {!isValid && validationErrors.length > 0 && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-          <h3 className="font-semibold text-yellow-800 dark:text-yellow-300 mb-2">Validation Warnings</h3>
-          <ul className="list-disc list-inside space-y-1">
-            {validationErrors.slice(0, 5).map((err, idx) => (
-              <li key={idx} className="text-sm text-yellow-700 dark:text-yellow-400">
-                {err.message}
-              </li>
-            ))}
-            {validationErrors.length > 5 && (
-              <li className="text-sm text-yellow-700 dark:text-yellow-400">
-                ... and {validationErrors.length - 5} more
-              </li>
-            )}
-          </ul>
+      {validationErrors.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="font-semibold text-gray-900 dark:text-white">
+            Data Validation Results
+          </h3>
+
+          {validationErrors.map((err, idx) => {
+            const info = getIssueInfo(err)
+            const severityStyles = {
+              error: {
+                container: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
+                icon: XCircle,
+                iconColor: 'text-red-500',
+                title: 'text-red-800 dark:text-red-300',
+                text: 'text-red-700 dark:text-red-400',
+              },
+              warning: {
+                container: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800',
+                icon: AlertTriangle,
+                iconColor: 'text-amber-500',
+                title: 'text-amber-800 dark:text-amber-300',
+                text: 'text-amber-700 dark:text-amber-400',
+              },
+              info: {
+                container: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
+                icon: Info,
+                iconColor: 'text-blue-500',
+                title: 'text-blue-800 dark:text-blue-300',
+                text: 'text-blue-700 dark:text-blue-400',
+              },
+            }
+            const styles = severityStyles[info.severity]
+            const Icon = styles.icon
+
+            return (
+              <div key={idx} className={`border rounded-lg p-4 ${styles.container}`}>
+                <div className="flex items-start space-x-3">
+                  <Icon className={`w-5 h-5 mt-0.5 flex-shrink-0 ${styles.iconColor}`} />
+                  <div className="flex-1 min-w-0">
+                    <h4 className={`font-semibold ${styles.title}`}>
+                      {info.title}
+                      {info.severity === 'error' && (
+                        <span className="ml-2 text-xs font-normal bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200 px-2 py-0.5 rounded">
+                          Blocking
+                        </span>
+                      )}
+                    </h4>
+
+                    {(err.column || err.columns) && (
+                      <p className={`text-sm mt-1 ${styles.text}`}>
+                        <span className="font-medium">Affected: </span>
+                        <code className="bg-white/50 dark:bg-black/20 px-1 rounded">
+                          {err.column || err.columns?.join(', ')}
+                        </code>
+                      </p>
+                    )}
+
+                    <p className={`text-sm mt-2 ${styles.text}`}>
+                      <span className="font-medium">What this means: </span>
+                      {info.explanation}
+                    </p>
+
+                    <p className={`text-sm mt-2 ${styles.text}`}>
+                      <span className="font-medium">How to fix: </span>
+                      {info.fix}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+
+          {!isValid && (
+            <div className="bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg p-4">
+              <p className="text-sm text-red-800 dark:text-red-300 font-medium">
+                <XCircle className="w-4 h-4 inline mr-2" />
+                Cannot proceed: Please fix the blocking issues above before continuing.
+              </p>
+            </div>
+          )}
         </div>
       )}
 

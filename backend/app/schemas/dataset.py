@@ -47,3 +47,7 @@ class DatasetUploadResponse(BaseModel):
     column_count: int
     item_names: list[str]
     validation_status: str
+    validation_errors: list[dict[str, Any]] | None = None
+
+    class Config:
+        from_attributes = True
