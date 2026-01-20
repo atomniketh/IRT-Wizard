@@ -50,53 +50,53 @@ export function DataPreview({ send, context }: DataPreviewProps) {
       </div>
 
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900">Data Preview</h2>
-        <p className="mt-2 text-gray-600">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Data Preview</h2>
+        <p className="mt-2 text-gray-600 dark:text-gray-400">
           Review your data before running the analysis
         </p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-gray-50 rounded-lg p-4 text-center">
-          <p className="text-2xl font-bold text-gray-900">{dataset.row_count || 0}</p>
-          <p className="text-sm text-gray-600">Respondents</p>
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-center">
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{dataset.row_count || 0}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Respondents</p>
         </div>
-        <div className="bg-gray-50 rounded-lg p-4 text-center">
-          <p className="text-2xl font-bold text-gray-900">{dataset.column_count || 0}</p>
-          <p className="text-sm text-gray-600">Items</p>
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-center">
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{dataset.column_count || 0}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Items</p>
         </div>
-        <div className="bg-gray-50 rounded-lg p-4 text-center">
-          <p className="text-2xl font-bold text-gray-900">
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-center">
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">
             {((dataset.file_size || 0) / 1024).toFixed(1)} KB
           </p>
-          <p className="text-sm text-gray-600">File Size</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">File Size</p>
         </div>
-        <div className="bg-gray-50 rounded-lg p-4 text-center">
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-center">
           <div className="flex items-center justify-center space-x-2">
             {isValid ? (
               <CheckCircle className="w-6 h-6 text-green-500" />
             ) : (
               <AlertCircle className="w-6 h-6 text-red-500" />
             )}
-            <span className={isValid ? 'text-green-700' : 'text-red-700'}>
+            <span className={isValid ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}>
               {isValid ? 'Valid' : 'Issues'}
             </span>
           </div>
-          <p className="text-sm text-gray-600">Status</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Status</p>
         </div>
       </div>
 
       {!isValid && validationErrors.length > 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <h3 className="font-semibold text-yellow-800 mb-2">Validation Warnings</h3>
+        <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+          <h3 className="font-semibold text-yellow-800 dark:text-yellow-300 mb-2">Validation Warnings</h3>
           <ul className="list-disc list-inside space-y-1">
             {validationErrors.slice(0, 5).map((err, idx) => (
-              <li key={idx} className="text-sm text-yellow-700">
+              <li key={idx} className="text-sm text-yellow-700 dark:text-yellow-400">
                 {err.message}
               </li>
             ))}
             {validationErrors.length > 5 && (
-              <li className="text-sm text-yellow-700">
+              <li className="text-sm text-yellow-700 dark:text-yellow-400">
                 ... and {validationErrors.length - 5} more
               </li>
             )}
@@ -109,43 +109,43 @@ export function DataPreview({ send, context }: DataPreviewProps) {
           <div className="animate-spin w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full" />
         </div>
       ) : error ? (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">{error}</div>
+        <div className="p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400">{error}</div>
       ) : preview ? (
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
                 {preview.columns.slice(0, 10).map((col) => (
                   <th
                     key={col}
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
                   >
                     {col}
                   </th>
                 ))}
                 {preview.columns.length > 10 && (
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
                     +{preview.columns.length - 10} more
                   </th>
                 )}
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
               {preview.rows.map((row, rowIdx) => (
                 <tr key={rowIdx}>
                   {preview.columns.slice(0, 10).map((col) => (
-                    <td key={col} className="px-4 py-3 text-sm text-gray-900">
+                    <td key={col} className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
                       {String(row[col] ?? '')}
                     </td>
                   ))}
                   {preview.columns.length > 10 && (
-                    <td className="px-4 py-3 text-sm text-gray-400">...</td>
+                    <td className="px-4 py-3 text-sm text-gray-400 dark:text-gray-500">...</td>
                   )}
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="text-sm text-gray-500 mt-2 text-center">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 text-center">
             Showing first 10 rows of {preview.total_rows}
           </p>
         </div>

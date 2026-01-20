@@ -59,16 +59,16 @@ export function AbilityDistribution({ estimates }: AbilityDistributionProps) {
   }, [estimates])
 
   if (estimates.length === 0) {
-    return <div className="text-gray-500">No ability estimates available</div>
+    return <div className="text-gray-500 dark:text-gray-400">No ability estimates available</div>
   }
 
   return (
     <div className="space-y-4">
-      <h3 className="font-semibold text-gray-900">
+      <h3 className="font-semibold text-gray-900 dark:text-white">
         {isStudent ? 'Distribution of Scores' : 'Ability Distribution'}
       </h3>
 
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={histogramData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -104,31 +104,31 @@ export function AbilityDistribution({ estimates }: AbilityDistributionProps) {
 
       {stats && (
         <div className="grid gap-4 md:grid-cols-5">
-          <div className="bg-gray-50 rounded-lg p-3 text-center">
-            <p className="text-xs text-gray-600">N</p>
-            <p className="text-lg font-bold text-gray-900">{estimates.length}</p>
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-center">
+            <p className="text-xs text-gray-600 dark:text-gray-400">N</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-white">{estimates.length}</p>
           </div>
-          <div className="bg-gray-50 rounded-lg p-3 text-center">
-            <p className="text-xs text-gray-600">Mean</p>
-            <p className="text-lg font-bold text-gray-900">{stats.mean.toFixed(2)}</p>
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-center">
+            <p className="text-xs text-gray-600 dark:text-gray-400">Mean</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-white">{stats.mean.toFixed(2)}</p>
           </div>
-          <div className="bg-gray-50 rounded-lg p-3 text-center">
-            <p className="text-xs text-gray-600">{isStudent ? 'Spread' : 'SD'}</p>
-            <p className="text-lg font-bold text-gray-900">{stats.std.toFixed(2)}</p>
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-center">
+            <p className="text-xs text-gray-600 dark:text-gray-400">{isStudent ? 'Spread' : 'SD'}</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-white">{stats.std.toFixed(2)}</p>
           </div>
-          <div className="bg-gray-50 rounded-lg p-3 text-center">
-            <p className="text-xs text-gray-600">Min</p>
-            <p className="text-lg font-bold text-gray-900">{stats.min.toFixed(2)}</p>
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-center">
+            <p className="text-xs text-gray-600 dark:text-gray-400">Min</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-white">{stats.min.toFixed(2)}</p>
           </div>
-          <div className="bg-gray-50 rounded-lg p-3 text-center">
-            <p className="text-xs text-gray-600">Max</p>
-            <p className="text-lg font-bold text-gray-900">{stats.max.toFixed(2)}</p>
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-center">
+            <p className="text-xs text-gray-600 dark:text-gray-400">Max</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-white">{stats.max.toFixed(2)}</p>
           </div>
         </div>
       )}
 
       {isResearcher && stats && (
-        <div className="text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
+        <div className="text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
           <p>
             <strong>Note:</strong> Ability estimates are on the standardized IRT scale (mean ≈ 0,
             SD ≈ 1). The observed mean of {stats.mean.toFixed(3)} and SD of {stats.std.toFixed(3)}{' '}

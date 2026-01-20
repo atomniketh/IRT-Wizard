@@ -52,11 +52,11 @@ export function ItemParametersTable({ items, modelType }: ItemParametersTablePro
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
+      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <thead className="bg-gray-50 dark:bg-gray-800">
           <tr>
             <th
-              className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+              className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
               onClick={() => handleSort('name')}
             >
               <div className="flex items-center space-x-1">
@@ -65,7 +65,7 @@ export function ItemParametersTable({ items, modelType }: ItemParametersTablePro
               </div>
             </th>
             <th
-              className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+              className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
               onClick={() => handleSort('difficulty')}
             >
               <div className="flex items-center space-x-1">
@@ -76,7 +76,7 @@ export function ItemParametersTable({ items, modelType }: ItemParametersTablePro
             </th>
             {showDiscrimination && (
               <th
-                className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                 onClick={() => handleSort('discrimination')}
               >
                 <div className="flex items-center space-x-1">
@@ -88,7 +88,7 @@ export function ItemParametersTable({ items, modelType }: ItemParametersTablePro
             )}
             {showGuessing && (
               <th
-                className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                 onClick={() => handleSort('guessing')}
               >
                 <div className="flex items-center space-x-1">
@@ -99,37 +99,37 @@ export function ItemParametersTable({ items, modelType }: ItemParametersTablePro
               </th>
             )}
             {isResearcher && (
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 SE(b)
               </th>
             )}
             {isResearcher && showDiscrimination && (
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 SE(a)
               </th>
             )}
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
           {sortedItems.map((item, index) => (
-            <tr key={item.name || index} className="hover:bg-gray-50">
-              <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.name}</td>
-              <td className="px-4 py-3 text-sm text-gray-900">{formatValue(item.difficulty)}</td>
+            <tr key={item.name || index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+              <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{item.name}</td>
+              <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{formatValue(item.difficulty)}</td>
               {showDiscrimination && (
-                <td className="px-4 py-3 text-sm text-gray-900">
+                <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
                   {formatValue(item.discrimination)}
                 </td>
               )}
               {showGuessing && (
-                <td className="px-4 py-3 text-sm text-gray-900">{formatValue(item.guessing)}</td>
+                <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{formatValue(item.guessing)}</td>
               )}
               {isResearcher && (
-                <td className="px-4 py-3 text-sm text-gray-500">
+                <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                   {formatValue(item.se_difficulty)}
                 </td>
               )}
               {isResearcher && showDiscrimination && (
-                <td className="px-4 py-3 text-sm text-gray-500">
+                <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                   {formatValue(item.se_discrimination)}
                 </td>
               )}

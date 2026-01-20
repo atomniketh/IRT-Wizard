@@ -98,8 +98,8 @@ export function DataUpload({ send, context }: DataUploadProps) {
       </div>
 
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900">Upload Your Data</h2>
-        <p className="mt-2 text-gray-600">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Upload Your Data</h2>
+        <p className="mt-2 text-gray-600 dark:text-gray-400">
           Upload a CSV or TSV file with response data (rows = respondents, columns = items)
         </p>
       </div>
@@ -110,8 +110,8 @@ export function DataUpload({ send, context }: DataUploadProps) {
           className={clsx(
             'px-4 py-2 rounded-lg font-medium transition-colors',
             uploadMode === 'file'
-              ? 'bg-primary-100 text-primary-700'
-              : 'text-gray-600 hover:bg-gray-100'
+              ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
+              : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
           )}
         >
           <Upload className="w-4 h-4 inline mr-2" />
@@ -122,8 +122,8 @@ export function DataUpload({ send, context }: DataUploadProps) {
           className={clsx(
             'px-4 py-2 rounded-lg font-medium transition-colors',
             uploadMode === 'url'
-              ? 'bg-primary-100 text-primary-700'
-              : 'text-gray-600 hover:bg-gray-100'
+              ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
+              : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
           )}
         >
           <Link className="w-4 h-4 inline mr-2" />
@@ -137,18 +137,18 @@ export function DataUpload({ send, context }: DataUploadProps) {
           className={clsx(
             'border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors',
             isDragActive
-              ? 'border-primary-500 bg-primary-50'
-              : 'border-gray-300 hover:border-primary-400'
+              ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
+              : 'border-gray-300 hover:border-primary-400 dark:border-gray-600 dark:hover:border-primary-500'
           )}
         >
           <input {...getInputProps()} />
-          <FileSpreadsheet className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+          <FileSpreadsheet className="w-12 h-12 mx-auto text-gray-400 dark:text-gray-500 mb-4" />
           {isDragActive ? (
-            <p className="text-primary-600 font-medium">Drop your file here</p>
+            <p className="text-primary-600 dark:text-primary-400 font-medium">Drop your file here</p>
           ) : (
             <>
-              <p className="text-gray-600 font-medium">Drag & drop your CSV or TSV file here</p>
-              <p className="text-sm text-gray-500 mt-2">or click to browse</p>
+              <p className="text-gray-600 dark:text-gray-300 font-medium">Drag & drop your CSV or TSV file here</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">or click to browse</p>
             </>
           )}
         </div>
@@ -159,7 +159,7 @@ export function DataUpload({ send, context }: DataUploadProps) {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://example.com/data.csv"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
           <Button onClick={handleUrlFetch} isLoading={isUploading} className="w-full">
             Fetch Data
@@ -168,17 +168,17 @@ export function DataUpload({ send, context }: DataUploadProps) {
       )}
 
       {isUploading && uploadMode === 'file' && (
-        <div className="text-center text-gray-600">
+        <div className="text-center text-gray-600 dark:text-gray-400">
           <div className="animate-spin w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full mx-auto mb-2" />
           Uploading...
         </div>
       )}
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">{error}</div>
+        <div className="p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400">{error}</div>
       )}
 
-      <div className="text-center text-sm text-gray-500">
+      <div className="text-center text-sm text-gray-500 dark:text-gray-400">
         <p>Maximum file size: 100MB</p>
         <p>Supported formats: CSV, TSV</p>
       </div>

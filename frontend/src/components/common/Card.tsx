@@ -11,9 +11,9 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={clsx(
-          'rounded-xl bg-white',
+          'rounded-xl bg-white dark:bg-gray-800 transition-colors',
           {
-            'border border-gray-200': variant === 'default' || variant === 'bordered',
+            'border border-gray-200 dark:border-gray-700': variant === 'default' || variant === 'bordered',
             'shadow-sm': variant === 'default',
             'shadow-lg': variant === 'elevated',
           },
@@ -36,7 +36,7 @@ export const CardHeader = forwardRef<HTMLDivElement, CardHeaderProps>(
     return (
       <div
         ref={ref}
-        className={clsx('px-6 py-4 border-b border-gray-200', className)}
+        className={clsx('px-6 py-4 border-b border-gray-200 dark:border-gray-700', className)}
         {...props}
       >
         {children}

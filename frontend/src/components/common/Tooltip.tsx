@@ -26,7 +26,7 @@ export function Tooltip({ content = '', children, tooltipKey, position = 'top' }
       onMouseEnter={() => setIsVisible(true)}
       onMouseLeave={() => setIsVisible(false)}
     >
-      {children || <HelpCircle className="w-4 h-4 text-gray-400 cursor-help" />}
+      {children || <HelpCircle className="w-4 h-4 text-gray-400 dark:text-gray-500 cursor-help" />}
       {(isVisible || showTooltipOnLoad) && (
         <div
           className={clsx(

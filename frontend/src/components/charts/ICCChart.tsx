@@ -65,7 +65,7 @@ export function ICCChart({ analysisId, selectedItems }: ICCChartProps) {
   }
 
   if (error) {
-    return <div className="p-4 bg-red-50 text-red-700 rounded-lg">{error}</div>
+    return <div className="p-4 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg">{error}</div>
   }
 
   const filteredData =
@@ -95,14 +95,14 @@ export function ICCChart({ analysisId, selectedItems }: ICCChartProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <h3 className="font-semibold text-gray-900">
+          <h3 className="font-semibold text-gray-900 dark:text-white">
             {isStudent ? 'How Items Work' : 'Item Characteristic Curves'}
           </h3>
           <HelpTooltip tooltipKey="icc" />
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
         <ResponsiveContainer width="100%" height={400}>
           <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />

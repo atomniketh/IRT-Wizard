@@ -43,8 +43,8 @@ export function CompetencySelection({ send }: CompetencySelectionProps) {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900">Welcome to IRT Wizard</h2>
-        <p className="mt-2 text-gray-600">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Welcome to IRT Wizard</h2>
+        <p className="mt-2 text-gray-600 dark:text-gray-400">
           Select your experience level to customize the interface
         </p>
       </div>
@@ -60,17 +60,17 @@ export function CompetencySelection({ send }: CompetencySelectionProps) {
               className={clsx(
                 'p-6 rounded-xl border-2 text-left transition-all duration-200',
                 'hover:border-primary-500 hover:shadow-md',
-                'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-                'border-gray-200'
+                'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900',
+                'border-gray-200 dark:border-gray-700 dark:bg-gray-800'
               )}
             >
               <div className="flex items-center space-x-3 mb-3">
-                <div className="p-2 rounded-lg bg-primary-100">
-                  <Icon className="w-6 h-6 text-primary-600" />
+                <div className="p-2 rounded-lg bg-primary-100 dark:bg-primary-900">
+                  <Icon className="w-6 h-6 text-primary-600 dark:text-primary-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900">{option.title}</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{option.title}</h3>
               </div>
-              <p className="text-sm text-gray-600">{option.description}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{option.description}</p>
             </button>
           )
         })}

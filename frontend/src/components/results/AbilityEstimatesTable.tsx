@@ -71,11 +71,11 @@ export function AbilityEstimatesTable({ estimates, pageSize = 20 }: AbilityEstim
   return (
     <div>
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead className="bg-gray-50 dark:bg-gray-800">
             <tr>
               <th
-                className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                 onClick={() => handleSort('id')}
               >
                 <div className="flex items-center space-x-1">
@@ -84,7 +84,7 @@ export function AbilityEstimatesTable({ estimates, pageSize = 20 }: AbilityEstim
                 </div>
               </th>
               <th
-                className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                 onClick={() => handleSort('theta')}
               >
                 <div className="flex items-center space-x-1">
@@ -95,7 +95,7 @@ export function AbilityEstimatesTable({ estimates, pageSize = 20 }: AbilityEstim
               </th>
               {!isStudent && (
                 <th
-                  className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                   onClick={() => handleSort('se')}
                 >
                   <div className="flex items-center space-x-1">
@@ -105,13 +105,13 @@ export function AbilityEstimatesTable({ estimates, pageSize = 20 }: AbilityEstim
                 </th>
               )}
               {isResearcher && (
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   95% CI
                 </th>
               )}
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
             {paginatedEstimates.map((estimate, index) => {
               const ci95Lower = estimate.se
                 ? estimate.theta - 1.96 * estimate.se
@@ -121,20 +121,20 @@ export function AbilityEstimatesTable({ estimates, pageSize = 20 }: AbilityEstim
                 : null
 
               return (
-                <tr key={estimate.id || index} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                <tr key={estimate.id || index} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
                     {estimate.id}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-900">
+                  <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
                     {formatValue(estimate.theta)}
                   </td>
                   {!isStudent && (
-                    <td className="px-4 py-3 text-sm text-gray-500">
+                    <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                       {formatValue(estimate.se)}
                     </td>
                   )}
                   {isResearcher && (
-                    <td className="px-4 py-3 text-sm text-gray-500">
+                    <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                       [{formatValue(ci95Lower)}, {formatValue(ci95Upper)}]
                     </td>
                   )}
@@ -160,7 +160,7 @@ export function AbilityEstimatesTable({ estimates, pageSize = 20 }: AbilityEstim
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
               Page {currentPage} of {totalPages}
             </span>
             <Button

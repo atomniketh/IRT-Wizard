@@ -12,6 +12,8 @@ interface ModelOption {
   type: ModelType
   name: string
   shortDesc: string
+  disabled?: boolean
+  disabledReason?: string
 }
 
 const modelOptions: ModelOption[] = [
@@ -29,6 +31,8 @@ const modelOptions: ModelOption[] = [
     type: '3PL',
     name: 'Three-Parameter',
     shortDesc: 'Adds guessing parameter',
+    disabled: true,
+    disabledReason: 'Coming soon - requires library update',
   },
 ]
 
@@ -38,7 +42,7 @@ interface ModelSelectionProps {
 }
 
 export function ModelSelection({ send, context }: ModelSelectionProps) {
-  const [selectedModel, setSelectedModel] = useState<ModelType>('2PL')
+  const [selectedModel, setSelectedModel] = useState<ModelType>(context.modelType ?? '2PL')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -92,8 +96,8 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
       </div>
 
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900">Select IRT Model</h2>
-        <p className="mt-2 text-gray-600">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Select IRT Model</h2>
+        <p className="mt-2 text-gray-600 dark:text-gray-400">
           Choose the model that best fits your data and research needs
         </p>
       </div>
@@ -102,45 +106,54 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
         {modelOptions.map((option) => (
           <button
             key={option.type}
-            onClick={() => setSelectedModel(option.type)}
+            onClick={() => !option.disabled && setSelectedModel(option.type)}
+            disabled={option.disabled}
             className={clsx(
               'p-6 rounded-xl border-2 text-left transition-all duration-200',
-              'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-              selectedModel === option.type
-                ? 'border-primary-500 bg-primary-50'
-                : 'border-gray-200 hover:border-primary-300'
+              'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900',
+              option.disabled
+                ? 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed dark:border-gray-700 dark:bg-gray-800'
+                : selectedModel === option.type
+                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
+                  : 'border-gray-200 hover:border-primary-300 dark:border-gray-700 dark:hover:border-primary-600 dark:bg-gray-800'
             )}
           >
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-gray-900">{option.name}</h3>
-              <Tooltip tooltipKey={option.type.toLowerCase()} content={getModelDescription(option.type)} />
+              <h3 className={clsx('text-lg font-semibold', option.disabled ? 'text-gray-500 dark:text-gray-500' : 'text-gray-900 dark:text-white')}>
+                {option.name}
+              </h3>
+              <Tooltip content={getModelDescription(option.type)} />
             </div>
-            <p className="text-sm text-gray-600">{option.shortDesc}</p>
-            <p className="text-sm text-gray-500 mt-3">{getModelDescription(option.type)}</p>
+            <p className={clsx('text-sm', option.disabled ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-300')}>{option.shortDesc}</p>
+            {option.disabled && option.disabledReason ? (
+              <p className="text-sm text-amber-600 dark:text-amber-500 mt-3">{option.disabledReason}</p>
+            ) : (
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-3">{getModelDescription(option.type)}</p>
+            )}
           </button>
         ))}
       </div>
 
       {showAdvancedOptions && (
-        <details className="bg-gray-50 rounded-lg p-4">
-          <summary className="font-medium text-gray-700 cursor-pointer">
+        <details className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+          <summary className="font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
             Advanced Options
           </summary>
           <div className="mt-4 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Estimation Method
               </label>
-              <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              <select className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg">
                 <option value="MML">Marginal Maximum Likelihood</option>
                 <option value="MAP">Maximum A Posteriori</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Ability Estimation
               </label>
-              <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              <select className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg">
                 <option value="EAP">Expected A Posteriori (EAP)</option>
                 <option value="MAP">Maximum A Posteriori (MAP)</option>
                 <option value="MLE">Maximum Likelihood (MLE)</option>
@@ -149,24 +162,24 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
             {isResearcher && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Max Iterations
                   </label>
                   <input
                     type="number"
                     defaultValue={1000}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Convergence Threshold
                   </label>
                   <input
                     type="number"
                     step="0.0001"
                     defaultValue={0.0001}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg"
                   />
                 </div>
               </>
@@ -176,7 +189,7 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
       )}
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">{error}</div>
+        <div className="p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400">{error}</div>
       )}
 
       <div className="flex justify-end">

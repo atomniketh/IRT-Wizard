@@ -48,7 +48,7 @@ export function TIFChart({ analysisId }: TIFChartProps) {
   }
 
   if (error || !data) {
-    return <div className="p-4 bg-red-50 text-red-700 rounded-lg">{error || 'No data'}</div>
+    return <div className="p-4 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg">{error || 'No data'}</div>
   }
 
   const chartData = data.test_information.data.map((point) => ({
@@ -64,14 +64,14 @@ export function TIFChart({ analysisId }: TIFChartProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <h3 className="font-semibold text-gray-900">
+          <h3 className="font-semibold text-gray-900 dark:text-white">
             {isStudent ? 'Where the Test Measures Best' : 'Test Information Function'}
           </h3>
           <HelpTooltip tooltipKey="tif" />
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
         <ResponsiveContainer width="100%" height={400}>
           <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
             <defs>
@@ -119,30 +119,30 @@ export function TIFChart({ analysisId }: TIFChartProps) {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="bg-gray-50 rounded-lg p-4 text-center">
-          <p className="text-sm text-gray-600">
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-center">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             {isStudent ? 'Best Measurement At' : 'Peak Information'}
           </p>
-          <p className="text-xl font-bold text-gray-900">θ = {peakTheta.toFixed(2)}</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">θ = {peakTheta.toFixed(2)}</p>
         </div>
-        <div className="bg-gray-50 rounded-lg p-4 text-center">
-          <p className="text-sm text-gray-600">
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-center">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             {isStudent ? 'Maximum Accuracy' : 'Max Information'}
           </p>
-          <p className="text-xl font-bold text-gray-900">{maxInfo.toFixed(2)}</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">{maxInfo.toFixed(2)}</p>
         </div>
-        <div className="bg-gray-50 rounded-lg p-4 text-center">
-          <p className="text-sm text-gray-600">
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-center">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             {isStudent ? 'Smallest Error' : 'Min SE(θ)'}
           </p>
-          <p className="text-xl font-bold text-gray-900">
+          <p className="text-xl font-bold text-gray-900 dark:text-white">
             {maxInfo > 0 ? (1 / Math.sqrt(maxInfo)).toFixed(3) : '-'}
           </p>
         </div>
       </div>
 
       {isResearcher && (
-        <div className="text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
+        <div className="text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
           <p>
             <strong>Interpretation:</strong> The test provides maximum information (minimum SE) at
             θ ≈ {peakTheta.toFixed(2)}. Information drops off as ability deviates from this point.
