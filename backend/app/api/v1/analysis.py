@@ -13,7 +13,6 @@ from app.models.analysis import Analysis
 from app.models.dataset import Dataset
 from app.schemas.analysis import AnalysisCreate, AnalysisRead, AnalysisStatus
 from app.schemas.irt import ICCCurve, ItemInformationFunction, TestInformationFunction
-from app.services.storage import StorageService
 
 router = APIRouter()
 
@@ -43,22 +42,19 @@ async def run_analysis_task(
         session.commit()
 
         try:
-            from app.config import Settings
+            import boto3
+            from botocore.config import Config
 
-            settings = Settings(
-                database_url=db_url,
-                s3_endpoint_url=s3_settings["endpoint"],
-                s3_access_key=s3_settings["access_key"],
-                s3_secret_key=s3_settings["secret_key"],
-                s3_bucket=s3_settings["bucket"],
+            s3_client = boto3.client(
+                "s3",
+                endpoint_url=s3_settings["endpoint"],
+                aws_access_key_id=s3_settings["access_key"],
+                aws_secret_access_key=s3_settings["secret_key"],
+                config=Config(signature_version="s3v4"),
             )
-            storage = StorageService(settings)
 
-            import asyncio
-
-            content = asyncio.get_event_loop().run_until_complete(
-                storage.download_file(dataset.file_path)
-            )
+            response = s3_client.get_object(Bucket=s3_settings["bucket"], Key=dataset.file_path)
+            content = response["Body"].read()
 
             separator = (
                 "\t"
