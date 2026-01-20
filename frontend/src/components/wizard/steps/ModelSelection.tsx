@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { clsx } from 'clsx'
 import { Button } from '../../common/Button'
@@ -48,6 +48,12 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [advancedOpen, setAdvancedOpen] = useState(isResearcher)
+
+  useEffect(() => {
+    if (isResearcher) {
+      setAdvancedOpen(true)
+    }
+  }, [isResearcher])
 
   const handleSubmit = async () => {
     if (!context.project || !context.dataset) {
