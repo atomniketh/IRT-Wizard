@@ -42,11 +42,12 @@ interface ModelSelectionProps {
 }
 
 export function ModelSelection({ send, context }: ModelSelectionProps) {
+  const { getModelDescription, showAdvancedOptions, isResearcher } = useCompetencyLevel()
+
   const [selectedModel, setSelectedModel] = useState<ModelType>(context.modelType ?? '2PL')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const { getModelDescription, showAdvancedOptions, isResearcher } = useCompetencyLevel()
+  const [advancedOpen, setAdvancedOpen] = useState(isResearcher)
 
   const handleSubmit = async () => {
     if (!context.project || !context.dataset) {
@@ -135,7 +136,11 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
       </div>
 
       {showAdvancedOptions && (
-        <details className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4" open={isResearcher}>
+        <details
+          className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4"
+          open={advancedOpen}
+          onToggle={(e) => setAdvancedOpen((e.target as HTMLDetailsElement).open)}
+        >
           <summary className="font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
             Advanced Options
           </summary>
