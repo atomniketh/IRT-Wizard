@@ -141,8 +141,9 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
           </summary>
           <div className="mt-4 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Estimation Method
+              <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <span>Estimation Method</span>
+                <Tooltip tooltipKey="estimation_method" />
               </label>
               <select className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg">
                 <option value="MML">Marginal Maximum Likelihood</option>
@@ -150,8 +151,9 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Ability Estimation
+              <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <span>Ability Estimation</span>
+                <Tooltip tooltipKey="ability_estimation" />
               </label>
               <select className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg">
                 <option value="EAP">Expected A Posteriori (EAP)</option>
@@ -162,8 +164,9 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
             {isResearcher && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Max Iterations
+                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <span>Max Iterations</span>
+                    <Tooltip tooltipKey="max_iterations" />
                   </label>
                   <input
                     type="number"
@@ -172,8 +175,9 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Convergence Threshold
+                  <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <span>Convergence Threshold</span>
+                    <Tooltip tooltipKey="convergence_threshold" />
                   </label>
                   <input
                     type="number"

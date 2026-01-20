@@ -44,6 +44,7 @@ def fit_model(
     item_names: list[str] | None = None,
 ) -> AnalysisResult:
     import girth
+    from girth import standard_errors_bootstrap
 
     n_persons, n_items = data.shape
 
@@ -54,16 +55,39 @@ def fit_model(
 
     data_for_girth = data.T
 
+    se_difficulty = None
+    se_discrimination = None
+    se_guessing = None
+
     if model_type == ModelType.ONE_PL:
         estimates = girth.rasch_mml(data_for_girth)
         difficulty = estimates["Difficulty"]
         discrimination = np.ones(n_items)
         guessing = np.zeros(n_items)
+        try:
+            bootstrap_result = standard_errors_bootstrap(
+                data_for_girth, girth.rasch_mml,
+                bootstrap_iterations=50, n_processors=1, seed=42
+            )
+            se_estimates = bootstrap_result.get("Standard Errors", {})
+            se_difficulty = se_estimates.get("Difficulty")
+        except Exception:
+            pass
     elif model_type == ModelType.TWO_PL:
         estimates = girth.twopl_mml(data_for_girth)
         difficulty = estimates["Difficulty"]
         discrimination = estimates["Discrimination"]
         guessing = np.zeros(n_items)
+        try:
+            bootstrap_result = standard_errors_bootstrap(
+                data_for_girth, girth.twopl_mml,
+                bootstrap_iterations=50, n_processors=1, seed=42
+            )
+            se_estimates = bootstrap_result.get("Standard Errors", {})
+            se_difficulty = se_estimates.get("Difficulty")
+            se_discrimination = se_estimates.get("Discrimination")
+        except Exception:
+            pass
     elif model_type == ModelType.THREE_PL:
         estimates = girth.threepl_mml(data_for_girth)
         difficulty = estimates["Difficulty"]
@@ -90,9 +114,9 @@ def fit_model(
         difficulty=difficulty,
         discrimination=discrimination,
         guessing=guessing,
-        se_difficulty=None,
-        se_discrimination=None,
-        se_guessing=None,
+        se_difficulty=se_difficulty,
+        se_discrimination=se_discrimination,
+        se_guessing=se_guessing,
     )
 
     abilities = AbilityEstimates(

@@ -64,6 +64,26 @@ export const tooltips: Record<string, TooltipContent> = {
     student: "How certain we are about the discrimination value.",
     educator: "Standard error of the discrimination estimate. Smaller = more precise.",
     researcher: "SE(a): Standard error of slope parameter. Large SE may indicate estimation issues."
+  },
+  estimation_method: {
+    student: "The math used to find the best values for each question.",
+    educator: "Algorithm for estimating item parameters. MML is most common.",
+    researcher: "MML integrates over ability distribution. MAP adds prior for regularization."
+  },
+  ability_estimation: {
+    student: "How we calculate each person's score.",
+    educator: "Method for estimating person abilities after item calibration.",
+    researcher: "EAP: posterior mean (Bayesian). MAP: posterior mode. MLE: maximum likelihood (can be undefined for extreme patterns)."
+  },
+  max_iterations: {
+    student: "How many times to try finding the best answer.",
+    educator: "Maximum EM iterations before stopping. Increase if not converging.",
+    researcher: "Upper bound on EM cycles. Typical range 500-2000. Check convergence if max reached."
+  },
+  convergence_threshold: {
+    student: "How close is 'close enough' to stop.",
+    educator: "Algorithm stops when parameter changes fall below this value.",
+    researcher: "Convergence criterion for relative change in log-likelihood or parameters. Smaller = more precise but slower."
   }
 }
 
