@@ -135,7 +135,7 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
       </div>
 
       {showAdvancedOptions && (
-        <details className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+        <details className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4" open={isResearcher}>
           <summary className="font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
             Advanced Options
           </summary>
