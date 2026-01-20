@@ -63,14 +63,25 @@ async def run_analysis_task(
                 else ","
             )
             df = pd.read_csv(io.BytesIO(content), sep=separator)
-            data = df.select_dtypes(include=[np.number]).values
+
+            binary_columns = []
+            for col in df.columns:
+                unique_vals = df[col].dropna().unique()
+                if all(v in [0, 1, 0.0, 1.0] for v in unique_vals):
+                    binary_columns.append(col)
+
+            if len(binary_columns) < 2:
+                raise ValueError(f"Need at least 2 binary columns, found {len(binary_columns)}")
+
+            item_df = df[binary_columns]
+            data = item_df.values
             data = np.nan_to_num(data, nan=0).astype(int)
 
             irt_model_type = IRTModelType(model_type)
             result = fit_model(
                 data=data,
                 model_type=irt_model_type,
-                item_names=list(df.columns),
+                item_names=binary_columns,
             )
 
             analysis.item_parameters = {
