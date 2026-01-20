@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from sqlalchemy import select
@@ -62,7 +63,8 @@ async def run_analysis_task(
                 else ","
             )
             df = pd.read_csv(io.BytesIO(content), sep=separator)
-            data = df.values
+            data = df.select_dtypes(include=[np.number]).values
+            data = np.nan_to_num(data, nan=0).astype(int)
 
             irt_model_type = IRTModelType(model_type)
             result = fit_model(

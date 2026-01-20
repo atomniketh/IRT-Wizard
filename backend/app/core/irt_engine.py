@@ -52,25 +52,27 @@ def fit_model(
 
     person_ids = [f"Person_{i+1}" for i in range(n_persons)]
 
+    data_for_girth = data.T
+
     if model_type == ModelType.ONE_PL:
-        estimates = girth.rasch_mml(data)
+        estimates = girth.rasch_mml(data_for_girth)
         difficulty = estimates["Difficulty"]
         discrimination = np.ones(n_items)
         guessing = np.zeros(n_items)
     elif model_type == ModelType.TWO_PL:
-        estimates = girth.twopl_mml(data)
+        estimates = girth.twopl_mml(data_for_girth)
         difficulty = estimates["Difficulty"]
         discrimination = estimates["Discrimination"]
         guessing = np.zeros(n_items)
     elif model_type == ModelType.THREE_PL:
-        estimates = girth.threepl_mml(data)
+        estimates = girth.threepl_mml(data_for_girth)
         difficulty = estimates["Difficulty"]
         discrimination = estimates["Discrimination"]
         guessing = estimates.get("Guessing", np.zeros(n_items))
     else:
         raise ValueError(f"Unsupported model type: {model_type}")
 
-    theta = girth.ability_eap(data, difficulty, discrimination, guessing)
+    theta = girth.ability_eap(data_for_girth, difficulty, discrimination)
 
     log_likelihood = compute_log_likelihood(data, difficulty, discrimination, guessing, theta)
 
@@ -124,14 +126,16 @@ def compute_log_likelihood(
     guessing: np.ndarray,
     theta: np.ndarray,
 ) -> float:
+    data = np.asarray(data, dtype=np.float64)
     n_persons, n_items = data.shape
     log_lik = 0.0
 
     for i in range(n_persons):
         for j in range(n_items):
-            p = compute_probability(theta[i], difficulty[j], discrimination[j], guessing[j])
+            p = compute_probability(float(theta[i]), float(difficulty[j]), float(discrimination[j]), float(guessing[j]))
             p = np.clip(p, 1e-10, 1 - 1e-10)
-            if data[i, j] == 1:
+            response = float(data[i, j])
+            if response == 1.0:
                 log_lik += np.log(p)
             else:
                 log_lik += np.log(1 - p)
