@@ -25,9 +25,13 @@ async def run_analysis_task(
     config: dict[str, Any] | None,
     db_url: str,
     s3_settings: dict[str, str],
+    mlflow_tracking_uri: str,
 ) -> None:
+    import mlflow
     from sqlalchemy import create_engine
     from sqlalchemy.orm import Session
+
+    mlflow.set_tracking_uri(mlflow_tracking_uri)
 
     engine = create_engine(db_url.replace("+asyncpg", ""))
 
@@ -78,11 +82,52 @@ async def run_analysis_task(
             data = np.nan_to_num(data, nan=0).astype(int)
 
             irt_model_type = IRTModelType(model_type)
-            result = fit_model(
-                data=data,
-                model_type=irt_model_type,
-                item_names=binary_columns,
-            )
+
+            experiment = mlflow.get_experiment_by_name("IRT-Analyses")
+            if experiment is None:
+                mlflow.create_experiment(
+                    "IRT-Analyses",
+                    tags={
+                        "mlflow.note.content": "Item Response Theory model fitting experiments. Tracks 1PL, 2PL, and 3PL model runs with item parameters, fit statistics, and standard errors."
+                    }
+                )
+            mlflow.set_experiment("IRT-Analyses")
+            with mlflow.start_run(run_name=f"{model_type}_{analysis_id}") as run:
+                mlflow.set_tag("mlflow.note.content", f"{model_type} IRT model analysis on {dataset.original_filename or dataset.name}")
+                mlflow.log_param("model_type", model_type)
+                mlflow.log_param("dataset_id", str(dataset_id))
+                mlflow.log_param("dataset_name", dataset.original_filename or dataset.name)
+                mlflow.log_param("n_items", len(binary_columns))
+                mlflow.log_param("n_persons", len(data))
+                if config:
+                    for key, value in config.items():
+                        mlflow.log_param(f"config_{key}", value)
+
+                result = fit_model(
+                    data=data,
+                    model_type=irt_model_type,
+                    item_names=binary_columns,
+                )
+
+                mlflow.log_metric("aic", result.model_fit["aic"])
+                mlflow.log_metric("bic", result.model_fit["bic"])
+                mlflow.log_metric("log_likelihood", result.model_fit["log_likelihood"])
+                mlflow.log_metric("n_parameters", result.model_fit["n_parameters"])
+                mlflow.log_metric("converged", 1 if result.converged else 0)
+
+                mean_difficulty = float(np.mean(result.item_parameters.difficulty))
+                mean_discrimination = float(np.mean(result.item_parameters.discrimination))
+                mlflow.log_metric("mean_difficulty", mean_difficulty)
+                mlflow.log_metric("mean_discrimination", mean_discrimination)
+
+                if result.item_parameters.se_difficulty is not None:
+                    mean_se_difficulty = float(np.mean(result.item_parameters.se_difficulty))
+                    mlflow.log_metric("mean_se_difficulty", mean_se_difficulty)
+                if result.item_parameters.se_discrimination is not None:
+                    mean_se_discrimination = float(np.mean(result.item_parameters.se_discrimination))
+                    mlflow.log_metric("mean_se_discrimination", mean_se_discrimination)
+
+                analysis.mlflow_run_id = run.info.run_id
 
             analysis.item_parameters = {
                 "items": [
@@ -175,6 +220,7 @@ async def create_analysis(
         analysis.config,
         settings.database_url,
         s3_settings,
+        settings.mlflow_tracking_uri,
     )
 
     return analysis
