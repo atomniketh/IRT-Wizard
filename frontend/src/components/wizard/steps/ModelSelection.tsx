@@ -145,7 +145,7 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
                 <span>Estimation Method</span>
                 <Tooltip tooltipKey="estimation_method" />
               </label>
-              <select className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg">
+              <select className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg">
                 <option value="MML">Marginal Maximum Likelihood</option>
                 <option value="MAP">Maximum A Posteriori</option>
               </select>
@@ -155,7 +155,7 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
                 <span>Ability Estimation</span>
                 <Tooltip tooltipKey="ability_estimation" />
               </label>
-              <select className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg">
+              <select className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg">
                 <option value="EAP">Expected A Posteriori (EAP)</option>
                 <option value="MAP">Maximum A Posteriori (MAP)</option>
                 <option value="MLE">Maximum Likelihood (MLE)</option>
@@ -171,7 +171,7 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
                   <input
                     type="number"
                     defaultValue={1000}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg"
+                    className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg"
                   />
                 </div>
                 <div>
@@ -183,7 +183,7 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
                     type="number"
                     step="0.0001"
                     defaultValue={0.0001}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg"
+                    className="w-full px-3 py-2 border border-gray-300 bg-white text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg"
                   />
                 </div>
               </>
