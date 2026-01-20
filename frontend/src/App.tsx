@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Routes, Route, NavLink } from 'react-router-dom'
 import { WizardContainer } from './components/wizard/WizardContainer'
 import { About } from './components/About'
+import { MLflowViewer } from './components/MLflowViewer'
 import { ThemeToggle } from './components/common/ThemeToggle'
 import { useSettingsStore } from './store'
 import { clsx } from 'clsx'
@@ -42,6 +43,19 @@ function App() {
                 Analysis
               </NavLink>
               <NavLink
+                to="/experiments"
+                className={({ isActive }) =>
+                  clsx(
+                    'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
+                      : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'
+                  )
+                }
+              >
+                Experiments
+              </NavLink>
+              <NavLink
                 to="/about"
                 className={({ isActive }) =>
                   clsx(
@@ -64,6 +78,7 @@ function App() {
         <Routes>
           <Route path="/" element={<WizardContainer />} />
           <Route path="/project/:projectId" element={<WizardContainer />} />
+          <Route path="/experiments" element={<MLflowViewer />} />
           <Route path="/about" element={<About />} />
         </Routes>
       </main>
