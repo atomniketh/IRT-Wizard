@@ -100,12 +100,18 @@ export function ItemParametersTable({ items, modelType }: ItemParametersTablePro
             )}
             {isResearcher && (
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                SE(b)
+                <div className="flex items-center space-x-1">
+                  <span>SE(b)</span>
+                  <Tooltip tooltipKey="se_difficulty" position="bottom" />
+                </div>
               </th>
             )}
             {isResearcher && showDiscrimination && (
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                SE(a)
+                <div className="flex items-center space-x-1">
+                  <span>SE(a)</span>
+                  <Tooltip tooltipKey="se_discrimination" position="bottom" />
+                </div>
               </th>
             )}
           </tr>

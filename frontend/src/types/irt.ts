@@ -54,6 +54,16 @@ export const tooltips: Record<string, TooltipContent> = {
     student: "Shows where the test measures best overall.",
     educator: "Test Information Function. Sum of all IIFs. Higher = more precise measurement.",
     researcher: "TIF = Σ I_j(θ). SE(θ) = 1/√TIF. Use for test design and targeting."
+  },
+  se_difficulty: {
+    student: "How certain we are about the difficulty value.",
+    educator: "Standard error of the difficulty estimate. Smaller = more precise.",
+    researcher: "SE(b): Standard error of difficulty parameter. Based on Fisher information matrix."
+  },
+  se_discrimination: {
+    student: "How certain we are about the discrimination value.",
+    educator: "Standard error of the discrimination estimate. Smaller = more precise.",
+    researcher: "SE(a): Standard error of slope parameter. Large SE may indicate estimation issues."
   }
 }
 

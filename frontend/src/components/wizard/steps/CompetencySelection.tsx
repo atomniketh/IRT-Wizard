@@ -2,6 +2,7 @@ import { GraduationCap, BookOpen, Microscope } from 'lucide-react'
 import { clsx } from 'clsx'
 import type { CompetencyLevel } from '@/types'
 import type { WizardEvent } from '../WizardMachine'
+import { useSettingsStore } from '@/store'
 
 interface CompetencyOption {
   level: CompetencyLevel
@@ -36,7 +37,10 @@ interface CompetencySelectionProps {
 }
 
 export function CompetencySelection({ send }: CompetencySelectionProps) {
+  const setCompetencyLevel = useSettingsStore((s) => s.setCompetencyLevel)
+
   const handleSelect = (level: CompetencyLevel) => {
+    setCompetencyLevel(level)
     send({ type: 'SELECT_COMPETENCY', level })
   }
 
