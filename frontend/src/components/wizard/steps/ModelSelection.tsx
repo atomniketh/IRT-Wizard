@@ -103,6 +103,10 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
         <p className="mt-2 text-gray-600 dark:text-gray-400">
           Choose the model that best fits your data and research needs
         </p>
+        {/* DEBUG */}
+        <p className="text-xs text-red-500 mt-2">
+          DEBUG: competencyLevel={context.competencyLevel}, isResearcher={String(isResearcher)}, showAdvanced={String(showAdvancedOptions)}
+        </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
