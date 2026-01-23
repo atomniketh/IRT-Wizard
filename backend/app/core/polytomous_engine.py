@@ -619,3 +619,613 @@ def compute_category_structure_analysis(
 def is_polytomous_model(model_type: ModelType) -> bool:
     """Check if model type is a polytomous model."""
     return model_type in (ModelType.RSM, ModelType.PCM)
+
+
+# =============================================================================
+# Phase 2: Additional Rasch Analyses
+# =============================================================================
+
+
+@dataclass
+class ReliabilityStatistics:
+    """Reliability and separation statistics for Rasch models."""
+    person_reliability: float  # Person separation reliability (like Cronbach's alpha)
+    item_reliability: float  # Item separation reliability
+    person_separation: float  # Person separation index
+    item_separation: float  # Item separation index
+    person_strata: float  # Number of statistically distinct person strata
+    item_strata: float  # Number of statistically distinct item strata
+
+
+@dataclass
+class PCARResult:
+    """Principal Component Analysis of Residuals result."""
+    eigenvalues: list[float]  # First N eigenvalues
+    variance_explained: list[float]  # Variance explained by each component (%)
+    cumulative_variance: list[float]  # Cumulative variance explained (%)
+    first_contrast_eigenvalue: float  # Eigenvalue of first contrast
+    is_unidimensional: bool  # True if first contrast eigenvalue < 2.0
+    loadings: list[dict[str, Any]] | None  # Item loadings on first contrast
+
+
+@dataclass
+class DIFResult:
+    """Differential Item Functioning analysis result."""
+    item_name: str
+    focal_difficulty: float  # Difficulty for focal group
+    reference_difficulty: float  # Difficulty for reference group
+    dif_contrast: float  # Difference in difficulties
+    dif_se: float | None  # Standard error of contrast
+    dif_t: float | None  # t-statistic
+    dif_p: float | None  # p-value
+    dif_classification: str  # "A" (negligible), "B" (moderate), "C" (large)
+
+
+def compute_reliability_statistics(
+    data: np.ndarray,
+    difficulty: np.ndarray,
+    thresholds: np.ndarray,
+    theta: np.ndarray,
+    model_type: ModelType,
+) -> ReliabilityStatistics:
+    """
+    Compute Rasch reliability and separation statistics.
+
+    Person reliability = true variance / observed variance
+    Separation = sqrt(true variance) / RMSE
+
+    Args:
+        data: Response matrix (n_persons x n_items)
+        difficulty: Item difficulties
+        thresholds: Category thresholds
+        theta: Person ability estimates
+        model_type: RSM or PCM
+
+    Returns:
+        ReliabilityStatistics with person/item reliability and separation
+    """
+    n_persons, n_items = data.shape
+
+    # Calculate SE for each person
+    person_se = _compute_person_standard_errors(data, difficulty, thresholds, theta, model_type)
+
+    # Person statistics
+    theta_variance = np.var(theta)
+    mean_se_squared = np.mean(person_se ** 2)
+
+    # True variance = observed variance - error variance
+    person_true_variance = max(0, theta_variance - mean_se_squared)
+
+    # Person reliability (analogous to Cronbach's alpha)
+    if theta_variance > 0:
+        person_reliability = person_true_variance / theta_variance
+    else:
+        person_reliability = 0.0
+
+    # Person separation
+    rmse_person = np.sqrt(mean_se_squared)
+    if rmse_person > 0:
+        person_separation = np.sqrt(person_true_variance) / rmse_person
+    else:
+        person_separation = 0.0
+
+    # Person strata (Rasch model: G = (4 * separation + 1) / 3)
+    person_strata = (4 * person_separation + 1) / 3
+
+    # Item statistics
+    item_variance = np.var(difficulty)
+
+    # Estimate item SE (simplified approach using sample size)
+    item_se = np.full(n_items, 1.0 / np.sqrt(n_persons))
+    mean_item_se_squared = np.mean(item_se ** 2)
+
+    item_true_variance = max(0, item_variance - mean_item_se_squared)
+
+    if item_variance > 0:
+        item_reliability = item_true_variance / item_variance
+    else:
+        item_reliability = 0.0
+
+    rmse_item = np.sqrt(mean_item_se_squared)
+    if rmse_item > 0:
+        item_separation = np.sqrt(item_true_variance) / rmse_item
+    else:
+        item_separation = 0.0
+
+    item_strata = (4 * item_separation + 1) / 3
+
+    return ReliabilityStatistics(
+        person_reliability=float(np.clip(person_reliability, 0, 1)),
+        item_reliability=float(np.clip(item_reliability, 0, 1)),
+        person_separation=float(max(0, person_separation)),
+        item_separation=float(max(0, item_separation)),
+        person_strata=float(max(1, person_strata)),
+        item_strata=float(max(1, item_strata)),
+    )
+
+
+def _compute_person_standard_errors(
+    data: np.ndarray,
+    difficulty: np.ndarray,
+    thresholds: np.ndarray,
+    theta: np.ndarray,
+    model_type: ModelType,
+) -> np.ndarray:
+    """Compute standard errors for person ability estimates."""
+    n_persons, n_items = data.shape
+    n_categories = len(thresholds) + 1 if thresholds.ndim == 1 else thresholds.shape[1] + 1
+
+    person_se = np.zeros(n_persons)
+
+    for i in range(n_persons):
+        # Fisher information for this person
+        info = 0.0
+        for j in range(n_items):
+            if np.isnan(data[i, j]):
+                continue
+
+            item_thresholds = thresholds if model_type == ModelType.RSM else thresholds[j]
+
+            # Compute expected value and variance for item information
+            expected = 0.0
+            expected_sq = 0.0
+            for k in range(n_categories):
+                p_k = compute_category_probability(theta[i], difficulty[j], item_thresholds, k)
+                expected += k * p_k
+                expected_sq += k * k * p_k
+
+            variance = expected_sq - expected ** 2
+            info += variance
+
+        # SE = 1 / sqrt(information)
+        if info > 0:
+            person_se[i] = 1.0 / np.sqrt(info)
+        else:
+            person_se[i] = 1.0  # Default large SE
+
+    return person_se
+
+
+def compute_pcar(
+    data: np.ndarray,
+    difficulty: np.ndarray,
+    thresholds: np.ndarray,
+    theta: np.ndarray,
+    model_type: ModelType,
+    n_components: int = 5,
+) -> PCARResult:
+    """
+    Compute Principal Component Analysis of Residuals (PCAR).
+
+    PCAR tests unidimensionality by analyzing the residual correlation matrix.
+    If the first contrast eigenvalue is < 2.0, the test is likely unidimensional.
+
+    Args:
+        data: Response matrix (n_persons x n_items)
+        difficulty: Item difficulties
+        thresholds: Category thresholds
+        theta: Person ability estimates
+        model_type: RSM or PCM
+        n_components: Number of eigenvalues to return
+
+    Returns:
+        PCARResult with eigenvalues, variance explained, and unidimensionality assessment
+    """
+    n_persons, n_items = data.shape
+    n_categories = len(thresholds) + 1 if thresholds.ndim == 1 else thresholds.shape[1] + 1
+
+    # Compute standardized residuals matrix
+    residuals = np.zeros((n_persons, n_items))
+
+    for i in range(n_persons):
+        for j in range(n_items):
+            if np.isnan(data[i, j]):
+                residuals[i, j] = 0.0  # Handle missing data
+                continue
+
+            observed = int(data[i, j])
+            item_thresholds = thresholds if model_type == ModelType.RSM else thresholds[j]
+
+            # Expected value and variance
+            expected = 0.0
+            expected_sq = 0.0
+            for k in range(n_categories):
+                p_k = compute_category_probability(theta[i], difficulty[j], item_thresholds, k)
+                expected += k * p_k
+                expected_sq += k * k * p_k
+
+            variance = max(expected_sq - expected ** 2, 0.01)
+
+            # Standardized residual
+            residuals[i, j] = (observed - expected) / np.sqrt(variance)
+
+    # Compute correlation matrix of residuals
+    # Center the residuals by column
+    residuals_centered = residuals - np.mean(residuals, axis=0)
+
+    # Compute correlation matrix
+    corr_matrix = np.corrcoef(residuals_centered.T)
+
+    # Handle NaN values in correlation matrix
+    corr_matrix = np.nan_to_num(corr_matrix, nan=0.0)
+
+    # Eigenvalue decomposition
+    try:
+        eigenvalues, eigenvectors = np.linalg.eigh(corr_matrix)
+        # Sort in descending order
+        idx = np.argsort(eigenvalues)[::-1]
+        eigenvalues = eigenvalues[idx]
+        eigenvectors = eigenvectors[:, idx]
+    except np.linalg.LinAlgError:
+        # Fallback if eigenvalue decomposition fails
+        eigenvalues = np.ones(min(n_components, n_items))
+        eigenvectors = np.eye(n_items)[:, :min(n_components, n_items)]
+
+    # Take first n_components
+    top_eigenvalues = eigenvalues[:n_components].tolist()
+
+    # Total variance is sum of eigenvalues (should equal n_items for correlation matrix)
+    total_variance = np.sum(np.abs(eigenvalues))
+    if total_variance == 0:
+        total_variance = 1.0
+
+    variance_explained = [(ev / total_variance) * 100 for ev in top_eigenvalues]
+    cumulative_variance = np.cumsum(variance_explained).tolist()
+
+    # First contrast eigenvalue (should be < 2.0 for unidimensionality)
+    first_contrast_eigenvalue = float(eigenvalues[0]) if len(eigenvalues) > 0 else 0.0
+
+    # Unidimensionality criterion: first eigenvalue < 2.0 (Rasch standard)
+    is_unidimensional = first_contrast_eigenvalue < 2.0
+
+    # Item loadings on first contrast
+    loadings = None
+    if len(eigenvectors) > 0:
+        first_eigenvector = eigenvectors[:, 0]
+        loadings = [
+            {"item_index": int(j), "loading": float(first_eigenvector[j])}
+            for j in range(n_items)
+        ]
+
+    return PCARResult(
+        eigenvalues=top_eigenvalues,
+        variance_explained=variance_explained,
+        cumulative_variance=cumulative_variance,
+        first_contrast_eigenvalue=first_contrast_eigenvalue,
+        is_unidimensional=is_unidimensional,
+        loadings=loadings,
+    )
+
+
+def compute_dif_analysis(
+    data: np.ndarray,
+    group_variable: np.ndarray,
+    difficulty: np.ndarray,
+    thresholds: np.ndarray,
+    theta: np.ndarray,
+    item_names: list[str],
+    model_type: ModelType,
+    focal_group: Any = None,
+    reference_group: Any = None,
+) -> list[DIFResult]:
+    """
+    Compute Differential Item Functioning (DIF) analysis.
+
+    DIF occurs when people from different groups with the same ability level
+    have different probabilities of responding in a particular category.
+
+    Args:
+        data: Response matrix (n_persons x n_items)
+        group_variable: Group membership array (n_persons,)
+        difficulty: Item difficulties
+        thresholds: Category thresholds
+        theta: Person ability estimates
+        item_names: List of item names
+        model_type: RSM or PCM
+        focal_group: Value indicating focal group (default: first unique value)
+        reference_group: Value indicating reference group (default: second unique value)
+
+    Returns:
+        List of DIFResult for each item
+    """
+    n_persons, n_items = data.shape
+
+    # Determine focal and reference groups
+    unique_groups = np.unique(group_variable[~np.isnan(group_variable.astype(float))])
+    if len(unique_groups) < 2:
+        # Not enough groups for DIF analysis
+        return []
+
+    if focal_group is None:
+        focal_group = unique_groups[0]
+    if reference_group is None:
+        reference_group = unique_groups[1]
+
+    # Create masks for each group
+    focal_mask = group_variable == focal_group
+    reference_mask = group_variable == reference_group
+
+    focal_data = data[focal_mask]
+    reference_data = data[reference_mask]
+    focal_theta = theta[focal_mask]
+    reference_theta = theta[reference_mask]
+
+    n_focal = np.sum(focal_mask)
+    n_reference = np.sum(reference_mask)
+
+    dif_results = []
+
+    for j in range(n_items):
+        # Estimate separate difficulties for each group
+        focal_difficulty = _estimate_item_difficulty_for_group(
+            focal_data[:, j], focal_theta
+        )
+        reference_difficulty = _estimate_item_difficulty_for_group(
+            reference_data[:, j], reference_theta
+        )
+
+        # DIF contrast
+        dif_contrast = focal_difficulty - reference_difficulty
+
+        # Standard error of contrast (simplified)
+        # SE = sqrt(1/n_focal + 1/n_reference)
+        if n_focal > 0 and n_reference > 0:
+            dif_se = np.sqrt(1.0 / n_focal + 1.0 / n_reference)
+        else:
+            dif_se = None
+
+        # t-statistic and p-value
+        dif_t = None
+        dif_p = None
+        if dif_se is not None and dif_se > 0:
+            dif_t = dif_contrast / dif_se
+            # Two-tailed p-value (using normal approximation for large samples)
+            from scipy import stats
+            dif_p = 2 * (1 - stats.norm.cdf(abs(dif_t)))
+
+        # DIF classification (ETS classification)
+        # A: |contrast| < 0.43 (negligible)
+        # B: 0.43 <= |contrast| < 0.64 (moderate)
+        # C: |contrast| >= 0.64 (large)
+        abs_contrast = abs(dif_contrast)
+        if abs_contrast < 0.43:
+            classification = "A"
+        elif abs_contrast < 0.64:
+            classification = "B"
+        else:
+            classification = "C"
+
+        dif_results.append(DIFResult(
+            item_name=item_names[j],
+            focal_difficulty=float(focal_difficulty),
+            reference_difficulty=float(reference_difficulty),
+            dif_contrast=float(dif_contrast),
+            dif_se=float(dif_se) if dif_se is not None else None,
+            dif_t=float(dif_t) if dif_t is not None else None,
+            dif_p=float(dif_p) if dif_p is not None else None,
+            dif_classification=classification,
+        ))
+
+    return dif_results
+
+
+def _estimate_item_difficulty_for_group(
+    item_responses: np.ndarray,
+    theta: np.ndarray,
+) -> float:
+    """Estimate item difficulty for a specific group using mean response and theta."""
+    valid_mask = ~np.isnan(item_responses)
+    if np.sum(valid_mask) == 0:
+        return 0.0
+
+    valid_responses = item_responses[valid_mask]
+    valid_theta = theta[valid_mask]
+
+    # Simple estimation: difficulty = mean(theta) - logit(mean_response / max_response)
+    mean_response = np.mean(valid_responses)
+    max_response = np.max(valid_responses) if len(valid_responses) > 0 else 1
+    mean_theta = np.mean(valid_theta)
+
+    if max_response == 0:
+        return mean_theta
+
+    prop = mean_response / max_response
+    prop = np.clip(prop, 0.01, 0.99)
+
+    # Logit transformation
+    logit = np.log(prop / (1 - prop))
+
+    # Difficulty is approximately mean_theta - logit
+    return mean_theta - logit
+
+
+def compute_category_structure_table(
+    data: np.ndarray,
+    difficulty: np.ndarray,
+    thresholds: np.ndarray,
+    theta: np.ndarray,
+    model_type: ModelType,
+) -> dict[str, Any]:
+    """
+    Generate comprehensive category structure analysis table.
+
+    This analysis helps identify:
+    - Category ordering problems (disordered thresholds)
+    - Underutilized categories
+    - Category collapse recommendations
+
+    Args:
+        data: Response matrix (n_persons x n_items)
+        difficulty: Item difficulties
+        thresholds: Category thresholds
+        theta: Person ability estimates
+        model_type: RSM or PCM
+
+    Returns:
+        Dict with category structure statistics and recommendations
+    """
+    n_persons, n_items = data.shape
+    n_categories = len(thresholds) + 1 if thresholds.ndim == 1 else thresholds.shape[1] + 1
+
+    # Get average thresholds
+    if model_type == ModelType.RSM or thresholds.ndim == 1:
+        avg_thresholds = thresholds if thresholds.ndim == 1 else thresholds
+    else:
+        avg_thresholds = np.mean(thresholds, axis=0)
+
+    categories = []
+    previous_threshold = None
+
+    for k in range(n_categories):
+        # Count responses in this category
+        count = int(np.sum(data == k))
+        percent = (count / (n_persons * n_items)) * 100 if (n_persons * n_items) > 0 else 0
+
+        # Observed average measure (theta) for this category
+        indices = np.where(data == k)
+        if len(indices[0]) > 0:
+            observed_thetas = theta[indices[0]]
+            observed_average = float(np.mean(observed_thetas))
+            observed_sd = float(np.std(observed_thetas)) if len(observed_thetas) > 1 else 0.0
+        else:
+            observed_average = None
+            observed_sd = None
+
+        # Andrich threshold (structure calibration)
+        threshold_value = None
+        threshold_se = None
+        if k > 0 and k - 1 < len(avg_thresholds):
+            threshold_value = float(avg_thresholds[k - 1])
+
+        # Check for disordered thresholds
+        is_disordered = False
+        if previous_threshold is not None and threshold_value is not None:
+            is_disordered = threshold_value < previous_threshold
+
+        if threshold_value is not None:
+            previous_threshold = threshold_value
+
+        categories.append({
+            "category": k,
+            "label": f"Category {k}",
+            "count": count,
+            "percent": round(percent, 1),
+            "observed_average": observed_average,
+            "observed_sd": observed_sd,
+            "andrich_threshold": threshold_value,
+            "se_threshold": threshold_se,
+            "is_disordered": is_disordered,
+        })
+
+    # Generate recommendations
+    recommendations = []
+
+    # Check for underutilized categories (< 10 responses or < 1%)
+    underutilized = [c for c in categories if c["count"] < 10 or c["percent"] < 1]
+    if underutilized:
+        recommendations.append({
+            "type": "underutilized",
+            "severity": "warning",
+            "message": f"Categories {[c['category'] for c in underutilized]} have few responses. Consider collapsing categories.",
+        })
+
+    # Check for disordered thresholds
+    disordered = [c for c in categories if c["is_disordered"]]
+    if disordered:
+        recommendations.append({
+            "type": "disordered",
+            "severity": "error",
+            "message": f"Disordered thresholds detected at categories {[c['category'] for c in disordered]}. Categories may not be functioning as intended.",
+        })
+
+    # Check if observed averages are monotonically increasing
+    averages = [c["observed_average"] for c in categories if c["observed_average"] is not None]
+    if len(averages) >= 2:
+        is_monotonic = all(averages[i] <= averages[i+1] for i in range(len(averages)-1))
+        if not is_monotonic:
+            recommendations.append({
+                "type": "non_monotonic",
+                "severity": "warning",
+                "message": "Observed averages are not monotonically increasing. This may indicate category structure issues.",
+            })
+
+    return {
+        "categories": categories,
+        "n_categories": n_categories,
+        "recommendations": recommendations,
+        "summary": {
+            "total_responses": int(n_persons * n_items),
+            "has_disordered_thresholds": len(disordered) > 0,
+            "has_underutilized_categories": len(underutilized) > 0,
+        },
+    }
+
+
+def compute_reliability_from_stored_results(
+    item_parameters: dict[str, Any],
+    ability_estimates: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Compute reliability statistics from stored analysis results.
+
+    Simplified version that works with stored JSON data rather than raw arrays.
+
+    Args:
+        item_parameters: Dict with 'items' list from analysis
+        ability_estimates: Dict with 'persons' list from analysis
+
+    Returns:
+        Dict with reliability statistics
+    """
+    items = item_parameters.get("items", [])
+    persons = ability_estimates.get("persons", [])
+
+    if not items or not persons:
+        return {
+            "person_reliability": 0.0,
+            "item_reliability": 0.0,
+            "person_separation": 0.0,
+            "item_separation": 0.0,
+            "person_strata": 1.0,
+            "item_strata": 1.0,
+        }
+
+    # Extract theta values
+    theta_values = np.array([p["theta"] for p in persons])
+    theta_variance = np.var(theta_values)
+
+    # Extract SE values (use default if not available)
+    se_values = np.array([p.get("se", 0.5) or 0.5 for p in persons])
+    mean_se_squared = np.mean(se_values ** 2)
+
+    # Person statistics
+    person_true_variance = max(0, theta_variance - mean_se_squared)
+    person_reliability = person_true_variance / theta_variance if theta_variance > 0 else 0.0
+
+    rmse_person = np.sqrt(mean_se_squared)
+    person_separation = np.sqrt(person_true_variance) / rmse_person if rmse_person > 0 else 0.0
+    person_strata = (4 * person_separation + 1) / 3
+
+    # Item statistics
+    difficulties = np.array([item["difficulty"] for item in items])
+    item_variance = np.var(difficulties)
+
+    n_persons = len(persons)
+    item_se = np.full(len(items), 1.0 / np.sqrt(n_persons)) if n_persons > 0 else np.ones(len(items))
+    mean_item_se_squared = np.mean(item_se ** 2)
+
+    item_true_variance = max(0, item_variance - mean_item_se_squared)
+    item_reliability = item_true_variance / item_variance if item_variance > 0 else 0.0
+
+    rmse_item = np.sqrt(mean_item_se_squared)
+    item_separation = np.sqrt(item_true_variance) / rmse_item if rmse_item > 0 else 0.0
+    item_strata = (4 * item_separation + 1) / 3
+
+    return {
+        "person_reliability": float(np.clip(person_reliability, 0, 1)),
+        "item_reliability": float(np.clip(item_reliability, 0, 1)),
+        "person_separation": float(max(0, person_separation)),
+        "item_separation": float(max(0, item_separation)),
+        "person_strata": float(max(1, person_strata)),
+        "item_strata": float(max(1, item_strata)),
+    }

@@ -8,6 +8,10 @@ import type {
   CategoryProbabilityCurve,
   WrightMapData,
   FitStatisticsItem,
+  ReliabilityStatistics,
+  PCARResult,
+  DIFAnalysisResult,
+  CategoryStructureTable,
 } from '@/types'
 
 export interface CreateAnalysisInput {
@@ -80,6 +84,30 @@ export const analysisApi = {
 
   getItemFitStatistics: async (id: string): Promise<FitStatisticsItem[]> => {
     const response = await apiClient.get(`/analyses/${id}/item-fit-statistics`)
+    return response.data
+  },
+
+  // Phase 2: Additional Rasch Analyses endpoints
+  getReliability: async (id: string): Promise<ReliabilityStatistics> => {
+    const response = await apiClient.get(`/analyses/${id}/reliability`)
+    return response.data
+  },
+
+  getCategoryStructure: async (id: string): Promise<CategoryStructureTable> => {
+    const response = await apiClient.get(`/analyses/${id}/category-structure`)
+    return response.data
+  },
+
+  getPCAR: async (id: string, nComponents: number = 5): Promise<PCARResult> => {
+    const response = await apiClient.get(`/analyses/${id}/pcar`, {
+      params: { n_components: nComponents },
+    })
+    return response.data
+  },
+
+  getDIF: async (id: string, groupColumn?: string): Promise<DIFAnalysisResult> => {
+    const params = groupColumn ? { group_column: groupColumn } : {}
+    const response = await apiClient.get(`/analyses/${id}/dif`, { params })
     return response.data
   },
 
