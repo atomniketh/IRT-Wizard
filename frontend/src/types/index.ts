@@ -1,6 +1,11 @@
 export type CompetencyLevel = 'researcher' | 'educator' | 'student'
 
-export type ModelType = '1PL' | '2PL' | '3PL'
+export type ModelType = '1PL' | '2PL' | '3PL' | 'RSM' | 'PCM'
+
+// Helper function to check if a model type is polytomous
+export function isPolytomousModel(modelType: ModelType): boolean {
+  return modelType === 'RSM' || modelType === 'PCM'
+}
 
 export type AnalysisStatus = 'pending' | 'running' | 'completed' | 'failed'
 
@@ -70,6 +75,65 @@ export interface ItemParameter {
   se_difficulty: number | null
   se_discrimination: number | null
   se_guessing: number | null
+}
+
+// Polytomous model types
+export interface PolytomousItemParameter {
+  name: string
+  difficulty: number
+  thresholds: number[]
+  se_difficulty: number | null
+  se_thresholds: number[] | null
+  infit_mnsq: number | null
+  outfit_mnsq: number | null
+  infit_zstd: number | null
+  outfit_zstd: number | null
+}
+
+export interface PolytomousItemParametersResult {
+  items: PolytomousItemParameter[]
+  n_categories: number
+  category_counts: number[]
+}
+
+export interface CategoryProbabilityDataPoint {
+  theta: number
+  probability: number
+}
+
+export interface CategoryProbabilityCurve {
+  item_name: string
+  category: number
+  data: CategoryProbabilityDataPoint[]
+}
+
+export interface WrightMapPerson {
+  theta: number
+  count: number
+}
+
+export interface WrightMapItem {
+  name: string
+  difficulty: number
+  thresholds: number[]
+}
+
+export interface WrightMapData {
+  persons: WrightMapPerson[]
+  items: WrightMapItem[]
+  min_logit: number
+  max_logit: number
+}
+
+export interface FitStatisticsItem {
+  name: string
+  count: number
+  measure: number
+  se: number | null
+  infit_mnsq: number
+  infit_zstd: number | null
+  outfit_mnsq: number
+  outfit_zstd: number | null
 }
 
 export interface ItemParametersResult {
