@@ -10,10 +10,23 @@ from sqlalchemy import select
 
 from app.api.deps import DbSession, SettingsDep
 from app.core.irt_engine import fit_model, ModelType as IRTModelType
+from app.core.polytomous_engine import (
+    fit_polytomous_model,
+    is_polytomous_model,
+    compute_category_probability_curves,
+    compute_wright_map_data,
+)
 from app.models.analysis import Analysis
 from app.models.dataset import Dataset
 from app.schemas.analysis import AnalysisCreate, AnalysisRead, AnalysisStatus
-from app.schemas.irt import ICCCurve, ItemInformationFunction, TestInformationFunction
+from app.schemas.irt import (
+    ICCCurve,
+    ItemInformationFunction,
+    TestInformationFunction,
+    CategoryProbabilityCurve,
+    WrightMapData,
+    FitStatisticsItem,
+)
 
 router = APIRouter()
 
@@ -68,27 +81,47 @@ async def run_analysis_task(
             )
             df = pd.read_csv(io.BytesIO(content), sep=separator)
 
-            binary_columns = []
-            for col in df.columns:
-                unique_vals = df[col].dropna().unique()
-                if all(v in [0, 1, 0.0, 1.0] for v in unique_vals):
-                    binary_columns.append(col)
-
-            if len(binary_columns) < 2:
-                raise ValueError(f"Need at least 2 binary columns, found {len(binary_columns)}")
-
-            item_df = df[binary_columns]
-            data = item_df.values
-            data = np.nan_to_num(data, nan=0).astype(int)
-
             irt_model_type = IRTModelType(model_type)
+            is_polytomous = is_polytomous_model(irt_model_type)
+
+            if is_polytomous:
+                # For polytomous models, find columns with ordinal data
+                ordinal_columns = []
+                for col in df.columns:
+                    unique_vals = df[col].dropna().unique()
+                    # Accept columns with numeric ordinal values
+                    if len(unique_vals) >= 2 and all(isinstance(v, (int, float)) for v in unique_vals):
+                        ordinal_columns.append(col)
+
+                if len(ordinal_columns) < 2:
+                    raise ValueError(f"Need at least 2 ordinal columns for polytomous models, found {len(ordinal_columns)}")
+
+                item_df = df[ordinal_columns]
+                data = item_df.values
+                data = np.nan_to_num(data, nan=0)
+                item_names = ordinal_columns
+            else:
+                # For dichotomous models, find binary columns
+                binary_columns = []
+                for col in df.columns:
+                    unique_vals = df[col].dropna().unique()
+                    if all(v in [0, 1, 0.0, 1.0] for v in unique_vals):
+                        binary_columns.append(col)
+
+                if len(binary_columns) < 2:
+                    raise ValueError(f"Need at least 2 binary columns, found {len(binary_columns)}")
+
+                item_df = df[binary_columns]
+                data = item_df.values
+                data = np.nan_to_num(data, nan=0).astype(int)
+                item_names = binary_columns
 
             experiment = mlflow.get_experiment_by_name("IRT-Analyses")
             if experiment is None:
                 mlflow.create_experiment(
                     "IRT-Analyses",
                     tags={
-                        "mlflow.note.content": "Item Response Theory model fitting experiments. Tracks 1PL, 2PL, and 3PL model runs with item parameters, fit statistics, and standard errors."
+                        "mlflow.note.content": "Item Response Theory model fitting experiments. Tracks 1PL, 2PL, 3PL, RSM, and PCM model runs with item parameters, fit statistics, and standard errors."
                     }
                 )
             mlflow.set_experiment("IRT-Analyses")
@@ -97,76 +130,169 @@ async def run_analysis_task(
                 mlflow.log_param("model_type", model_type)
                 mlflow.log_param("dataset_id", str(dataset_id))
                 mlflow.log_param("dataset_name", dataset.original_filename or dataset.name)
-                mlflow.log_param("n_items", len(binary_columns))
+                mlflow.log_param("n_items", len(item_names))
                 mlflow.log_param("n_persons", len(data))
+                mlflow.log_param("is_polytomous", is_polytomous)
                 if config:
                     for key, value in config.items():
                         mlflow.log_param(f"config_{key}", value)
 
-                result = fit_model(
-                    data=data,
-                    model_type=irt_model_type,
-                    item_names=binary_columns,
-                )
+                if is_polytomous:
+                    # Fit polytomous model (RSM or PCM)
+                    result = fit_polytomous_model(
+                        data=data,
+                        model_type=irt_model_type,
+                        item_names=item_names,
+                    )
 
-                mlflow.log_metric("aic", result.model_fit["aic"])
-                mlflow.log_metric("bic", result.model_fit["bic"])
-                mlflow.log_metric("log_likelihood", result.model_fit["log_likelihood"])
-                mlflow.log_metric("n_parameters", result.model_fit["n_parameters"])
-                mlflow.log_metric("converged", 1 if result.converged else 0)
+                    mlflow.log_metric("aic", result.model_fit["aic"])
+                    mlflow.log_metric("bic", result.model_fit["bic"])
+                    mlflow.log_metric("log_likelihood", result.model_fit["log_likelihood"])
+                    mlflow.log_metric("n_parameters", result.model_fit["n_parameters"])
+                    mlflow.log_metric("n_categories", result.n_categories)
+                    mlflow.log_metric("converged", 1 if result.converged else 0)
 
-                mean_difficulty = float(np.mean(result.item_parameters.difficulty))
-                mean_discrimination = float(np.mean(result.item_parameters.discrimination))
-                mlflow.log_metric("mean_difficulty", mean_difficulty)
-                mlflow.log_metric("mean_discrimination", mean_discrimination)
+                    mean_difficulty = float(np.mean(result.item_parameters.difficulty))
+                    mlflow.log_metric("mean_difficulty", mean_difficulty)
 
-                if result.item_parameters.se_difficulty is not None:
-                    mean_se_difficulty = float(np.mean(result.item_parameters.se_difficulty))
-                    mlflow.log_metric("mean_se_difficulty", mean_se_difficulty)
-                if result.item_parameters.se_discrimination is not None:
-                    mean_se_discrimination = float(np.mean(result.item_parameters.se_discrimination))
-                    mlflow.log_metric("mean_se_discrimination", mean_se_discrimination)
+                    if result.item_parameters.infit_mnsq is not None:
+                        mean_infit = float(np.mean(result.item_parameters.infit_mnsq))
+                        mean_outfit = float(np.mean(result.item_parameters.outfit_mnsq))
+                        mlflow.log_metric("mean_infit_mnsq", mean_infit)
+                        mlflow.log_metric("mean_outfit_mnsq", mean_outfit)
 
-                analysis.mlflow_run_id = run.info.run_id
+                    analysis.mlflow_run_id = run.info.run_id
 
-            analysis.item_parameters = {
-                "items": [
-                    {
-                        "name": result.item_parameters.names[i],
-                        "difficulty": float(result.item_parameters.difficulty[i]),
-                        "discrimination": float(result.item_parameters.discrimination[i]),
-                        "guessing": float(result.item_parameters.guessing[i]),
-                        "se_difficulty": (
-                            float(result.item_parameters.se_difficulty[i])
-                            if result.item_parameters.se_difficulty is not None
-                            else None
-                        ),
-                        "se_discrimination": (
-                            float(result.item_parameters.se_discrimination[i])
-                            if result.item_parameters.se_discrimination is not None
-                            else None
-                        ),
+                    # Store polytomous item parameters
+                    analysis.item_parameters = {
+                        "items": [
+                            {
+                                "name": result.item_parameters.names[i],
+                                "difficulty": float(result.item_parameters.difficulty[i]),
+                                "thresholds": (
+                                    result.item_parameters.thresholds.tolist()
+                                    if result.item_parameters.thresholds.ndim == 1
+                                    else result.item_parameters.thresholds[i].tolist()
+                                ),
+                                "se_difficulty": (
+                                    float(result.item_parameters.se_difficulty[i])
+                                    if result.item_parameters.se_difficulty is not None
+                                    else None
+                                ),
+                                "infit_mnsq": (
+                                    float(result.item_parameters.infit_mnsq[i])
+                                    if result.item_parameters.infit_mnsq is not None
+                                    else None
+                                ),
+                                "outfit_mnsq": (
+                                    float(result.item_parameters.outfit_mnsq[i])
+                                    if result.item_parameters.outfit_mnsq is not None
+                                    else None
+                                ),
+                                "infit_zstd": (
+                                    float(result.item_parameters.infit_zstd[i])
+                                    if result.item_parameters.infit_zstd is not None
+                                    else None
+                                ),
+                                "outfit_zstd": (
+                                    float(result.item_parameters.outfit_zstd[i])
+                                    if result.item_parameters.outfit_zstd is not None
+                                    else None
+                                ),
+                            }
+                            for i in range(len(result.item_parameters.names))
+                        ],
+                        "n_categories": result.n_categories,
+                        "category_counts": result.category_counts.tolist(),
                     }
-                    for i in range(len(result.item_parameters.names))
-                ]
-            }
 
-            analysis.ability_estimates = {
-                "persons": [
-                    {
-                        "id": result.abilities.person_ids[i],
-                        "theta": float(result.abilities.theta[i]),
-                        "se": (
-                            float(result.abilities.se_theta[i])
-                            if result.abilities.se_theta is not None
-                            else None
-                        ),
+                    # Store ability estimates
+                    analysis.ability_estimates = {
+                        "persons": [
+                            {
+                                "id": result.abilities.person_ids[i],
+                                "theta": float(result.abilities.theta[i]),
+                                "se": (
+                                    float(result.abilities.se_theta[i])
+                                    if result.abilities.se_theta is not None
+                                    else None
+                                ),
+                            }
+                            for i in range(len(result.abilities.person_ids))
+                        ]
                     }
-                    for i in range(len(result.abilities.person_ids))
-                ]
-            }
 
-            analysis.model_fit = result.model_fit
+                    analysis.model_fit = result.model_fit
+
+                else:
+                    # Fit dichotomous model (1PL, 2PL, or 3PL)
+                    result = fit_model(
+                        data=data,
+                        model_type=irt_model_type,
+                        item_names=item_names,
+                    )
+
+                    mlflow.log_metric("aic", result.model_fit["aic"])
+                    mlflow.log_metric("bic", result.model_fit["bic"])
+                    mlflow.log_metric("log_likelihood", result.model_fit["log_likelihood"])
+                    mlflow.log_metric("n_parameters", result.model_fit["n_parameters"])
+                    mlflow.log_metric("converged", 1 if result.converged else 0)
+
+                    mean_difficulty = float(np.mean(result.item_parameters.difficulty))
+                    mean_discrimination = float(np.mean(result.item_parameters.discrimination))
+                    mlflow.log_metric("mean_difficulty", mean_difficulty)
+                    mlflow.log_metric("mean_discrimination", mean_discrimination)
+
+                    if result.item_parameters.se_difficulty is not None:
+                        mean_se_difficulty = float(np.mean(result.item_parameters.se_difficulty))
+                        mlflow.log_metric("mean_se_difficulty", mean_se_difficulty)
+                    if result.item_parameters.se_discrimination is not None:
+                        mean_se_discrimination = float(np.mean(result.item_parameters.se_discrimination))
+                        mlflow.log_metric("mean_se_discrimination", mean_se_discrimination)
+
+                    analysis.mlflow_run_id = run.info.run_id
+
+                    # Store dichotomous item parameters
+                    analysis.item_parameters = {
+                        "items": [
+                            {
+                                "name": result.item_parameters.names[i],
+                                "difficulty": float(result.item_parameters.difficulty[i]),
+                                "discrimination": float(result.item_parameters.discrimination[i]),
+                                "guessing": float(result.item_parameters.guessing[i]),
+                                "se_difficulty": (
+                                    float(result.item_parameters.se_difficulty[i])
+                                    if result.item_parameters.se_difficulty is not None
+                                    else None
+                                ),
+                                "se_discrimination": (
+                                    float(result.item_parameters.se_discrimination[i])
+                                    if result.item_parameters.se_discrimination is not None
+                                    else None
+                                ),
+                            }
+                            for i in range(len(result.item_parameters.names))
+                        ]
+                    }
+
+                    # Store ability estimates
+                    analysis.ability_estimates = {
+                        "persons": [
+                            {
+                                "id": result.abilities.person_ids[i],
+                                "theta": float(result.abilities.theta[i]),
+                                "se": (
+                                    float(result.abilities.se_theta[i])
+                                    if result.abilities.se_theta is not None
+                                    else None
+                                ),
+                            }
+                            for i in range(len(result.abilities.person_ids))
+                        ]
+                    }
+
+                    analysis.model_fit = result.model_fit
+
             analysis.status = "completed"
             analysis.completed_at = datetime.utcnow()
 
@@ -317,6 +443,109 @@ async def get_information_functions(analysis_id: uuid.UUID, db: DbSession) -> di
         raise HTTPException(status_code=400, detail="Analysis not completed")
 
     return compute_information_functions(analysis.item_parameters, IRTModelType(analysis.model_type))
+
+
+@router.get("/{analysis_id}/category-probability-curves")
+async def get_category_probability_curves(
+    analysis_id: uuid.UUID,
+    db: DbSession,
+    item: str | None = None,
+) -> list[dict[str, Any]]:
+    """
+    Get category probability curves for polytomous models (RSM/PCM).
+
+    Args:
+        analysis_id: Analysis UUID
+        item: Optional item name to filter curves for
+    """
+    result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
+    analysis = result.scalar_one_or_none()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    if analysis.status != "completed" or not analysis.item_parameters:
+        raise HTTPException(status_code=400, detail="Analysis not completed")
+
+    model_type = IRTModelType(analysis.model_type)
+    if not is_polytomous_model(model_type):
+        raise HTTPException(
+            status_code=400,
+            detail="Category probability curves are only available for polytomous models (RSM/PCM)"
+        )
+
+    return compute_category_probability_curves(analysis.item_parameters, model_type, item)
+
+
+@router.get("/{analysis_id}/wright-map")
+async def get_wright_map(analysis_id: uuid.UUID, db: DbSession) -> dict[str, Any]:
+    """
+    Get Wright map data for polytomous models (RSM/PCM).
+
+    Returns person distribution and item difficulty locations for visualization.
+    """
+    result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
+    analysis = result.scalar_one_or_none()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    if analysis.status != "completed" or not analysis.item_parameters:
+        raise HTTPException(status_code=400, detail="Analysis not completed")
+
+    model_type = IRTModelType(analysis.model_type)
+    if not is_polytomous_model(model_type):
+        raise HTTPException(
+            status_code=400,
+            detail="Wright map is only available for polytomous models (RSM/PCM)"
+        )
+
+    return compute_wright_map_data(
+        analysis.item_parameters,
+        analysis.ability_estimates,
+        model_type
+    )
+
+
+@router.get("/{analysis_id}/item-fit-statistics")
+async def get_item_fit_statistics(analysis_id: uuid.UUID, db: DbSession) -> list[dict[str, Any]]:
+    """
+    Get MNSQ fit statistics for each item in polytomous models (RSM/PCM).
+
+    Returns infit and outfit MNSQ values for model fit assessment.
+    """
+    result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
+    analysis = result.scalar_one_or_none()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    if analysis.status != "completed" or not analysis.item_parameters:
+        raise HTTPException(status_code=400, detail="Analysis not completed")
+
+    model_type = IRTModelType(analysis.model_type)
+    if not is_polytomous_model(model_type):
+        raise HTTPException(
+            status_code=400,
+            detail="Item fit statistics are only available for polytomous models (RSM/PCM)"
+        )
+
+    items = analysis.item_parameters.get("items", [])
+    fit_stats = []
+
+    for item in items:
+        # Count responses for this item (from ability estimates as proxy for n)
+        n_persons = len(analysis.ability_estimates.get("persons", []))
+
+        fit_stats.append({
+            "name": item["name"],
+            "count": n_persons,
+            "measure": item.get("difficulty", 0.0),
+            "se": item.get("se_difficulty"),
+            "infit_mnsq": item.get("infit_mnsq", 1.0),
+            "infit_zstd": item.get("infit_zstd"),
+            "outfit_mnsq": item.get("outfit_mnsq", 1.0),
+            "outfit_zstd": item.get("outfit_zstd"),
+        })
+
+    return fit_stats
 
 
 @router.delete("/{analysis_id}", status_code=status.HTTP_204_NO_CONTENT)

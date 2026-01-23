@@ -14,18 +14,21 @@ interface ModelOption {
   shortDesc: string
   disabled?: boolean
   disabledReason?: string
+  category: 'dichotomous' | 'polytomous'
 }
 
-const modelOptions: ModelOption[] = [
+const dichotomousModelOptions: ModelOption[] = [
   {
     type: '1PL',
     name: 'One-Parameter (Rasch)',
     shortDesc: 'Estimates difficulty only',
+    category: 'dichotomous',
   },
   {
     type: '2PL',
     name: 'Two-Parameter',
     shortDesc: 'Estimates difficulty & discrimination',
+    category: 'dichotomous',
   },
   {
     type: '3PL',
@@ -33,6 +36,22 @@ const modelOptions: ModelOption[] = [
     shortDesc: 'Adds guessing parameter',
     disabled: true,
     disabledReason: 'Coming soon - requires library update',
+    category: 'dichotomous',
+  },
+]
+
+const polytomousModelOptions: ModelOption[] = [
+  {
+    type: 'RSM',
+    name: 'Rating Scale Model',
+    shortDesc: 'For Likert scales with shared structure',
+    category: 'polytomous',
+  },
+  {
+    type: 'PCM',
+    name: 'Partial Credit Model',
+    shortDesc: 'For scales with item-specific structure',
+    category: 'polytomous',
   },
 ]
 
@@ -41,15 +60,46 @@ interface ModelSelectionProps {
   context: WizardContext
 }
 
+// Helper to check if data has polytomous responses
+function detectPolytomousData(dataSummary: Record<string, unknown> | null | undefined): boolean {
+  if (!dataSummary) return false
+
+  // Check if any column has values > 1 (indicating polytomous data)
+  const columnStats = dataSummary.column_stats as Record<string, { max?: number }> | undefined
+  if (columnStats) {
+    for (const col of Object.values(columnStats)) {
+      if (col.max !== undefined && col.max > 1) {
+        return true
+      }
+    }
+  }
+
+  // Also check min_value/max_value if present
+  const maxValue = dataSummary.max_value as number | undefined
+  if (maxValue !== undefined && maxValue > 1) {
+    return true
+  }
+
+  return false
+}
+
 export function ModelSelection({ send, context }: ModelSelectionProps) {
   const { getModelDescription } = useCompetencyLevel()
 
   const isResearcher = context.competencyLevel === 'researcher'
   const showAdvancedOptions = isResearcher
 
-  const [selectedModel, setSelectedModel] = useState<ModelType>(context.modelType ?? '2PL')
+  // Detect if data is polytomous based on dataset summary
+  const hasPolytomousData = detectPolytomousData(context.dataset?.data_summary)
+
+  // Default to appropriate model based on data type
+  const defaultModel = hasPolytomousData ? 'RSM' : '2PL'
+  const [selectedModel, setSelectedModel] = useState<ModelType>(context.modelType ?? defaultModel)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Get available model options based on data type
+  const modelOptions = hasPolytomousData ? polytomousModelOptions : dichotomousModelOptions
 
   const handleSubmit = async () => {
     if (!context.project || !context.dataset) {
@@ -103,6 +153,11 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
         <p className="mt-2 text-gray-600 dark:text-gray-400">
           Choose the model that best fits your data and research needs
         </p>
+        {hasPolytomousData && (
+          <div className="mt-3 inline-flex items-center px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-sm">
+            Polytomous data detected - showing rating scale models
+          </div>
+        )}
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">

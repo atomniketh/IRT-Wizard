@@ -9,6 +9,8 @@ class ModelType(str, Enum):
     ONE_PL = "1PL"
     TWO_PL = "2PL"
     THREE_PL = "3PL"
+    RSM = "RSM"  # Rating Scale Model (polytomous)
+    PCM = "PCM"  # Partial Credit Model (polytomous)
 
 
 @dataclass

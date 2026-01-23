@@ -102,5 +102,54 @@ export const modelDescriptions: Record<string, TooltipContent> = {
     student: "Also accounts for lucky guessing on multiple choice questions.",
     educator: "Adds guessing parameter. Best for multiple choice with ~4 options.",
     researcher: "3PL: P(X=1|θ) = c + (1-c)/(1+exp(-a(θ-b))). Estimates a, b, and c. Requires large N."
+  },
+  'RSM': {
+    student: "For rating scale questions (like agree-disagree scales).",
+    educator: "Rating Scale Model. All items share the same category structure. Best for Likert-type scales.",
+    researcher: "RSM: P(X=k|θ,β,τ) = exp(Σ(θ-β-τⱼ)) / Σ exp(...). Shared thresholds across items."
+  },
+  'PCM': {
+    student: "For rating scale questions where each item can have different patterns.",
+    educator: "Partial Credit Model. Each item has unique category boundaries. More flexible than RSM.",
+    researcher: "PCM: Each item has unique thresholds. Generalizes RSM. P(X=k|θ,βᵢ,τᵢⱼ) with item-specific τ."
+  }
+}
+
+// Additional tooltips for polytomous model parameters
+export const polytomousTooltips: Record<string, TooltipContent> = {
+  thresholds: {
+    student: "Boundaries between response categories (like between 'disagree' and 'neutral').",
+    educator: "Andrich thresholds (τ). Define where one response category becomes more likely than the previous.",
+    researcher: "τⱼ: Threshold parameters for category j. Ordered thresholds indicate proper category functioning."
+  },
+  infit_mnsq: {
+    student: "How well this item fits the model (1.0 is perfect).",
+    educator: "Infit MNSQ. Expected value = 1.0. Range 0.5-1.5 is acceptable. Sensitive to unexpected responses near ability level.",
+    researcher: "Information-weighted mean square residual. Σ(z²ᵢW ᵢ)/Σ(Wᵢ). Values >1.5 indicate underfit, <0.5 indicate overfit."
+  },
+  outfit_mnsq: {
+    student: "Another measure of how well this item fits (1.0 is perfect).",
+    educator: "Outfit MNSQ. Expected value = 1.0. More sensitive to unexpected outlier responses.",
+    researcher: "Unweighted mean square residual. Sensitive to outliers. Values >2.0 often indicate problematic item."
+  },
+  infit_zstd: {
+    student: "Standardized fit value (should be between -2 and 2).",
+    educator: "Standardized infit. Should be between -2 and +2. Values outside suggest misfit.",
+    researcher: "Wilson-Hilferty transformation of infit MNSQ. Approximate z-score with expected value 0."
+  },
+  outfit_zstd: {
+    student: "Standardized fit value (should be between -2 and 2).",
+    educator: "Standardized outfit. Should be between -2 and +2. Values outside suggest misfit.",
+    researcher: "Wilson-Hilferty transformation of outfit MNSQ. Approximate z-score. Sensitive to outliers."
+  },
+  wright_map: {
+    student: "Shows where people and items are located on the same scale.",
+    educator: "Person-item map. Left shows person distribution, right shows item difficulties. Good targeting when distributions overlap.",
+    researcher: "Wright map/variable map. Logit scale. Reveals person-item targeting, ceiling/floor effects, and gaps in measurement."
+  },
+  category_probability_curve: {
+    student: "Shows how likely each response option is at different ability levels.",
+    educator: "Category probability curves. Each curve shows probability of selecting that category. Peaks should be ordered.",
+    researcher: "P(X=k|θ) for each category k. Andrich thresholds are where adjacent categories are equally likely."
   }
 }

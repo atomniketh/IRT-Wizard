@@ -1,5 +1,14 @@
 import { apiClient } from './client'
-import type { Analysis, ModelType, AnalysisConfig, ICCCurve, InformationFunctions } from '@/types'
+import type {
+  Analysis,
+  ModelType,
+  AnalysisConfig,
+  ICCCurve,
+  InformationFunctions,
+  CategoryProbabilityCurve,
+  WrightMapData,
+  FitStatisticsItem,
+} from '@/types'
 
 export interface CreateAnalysisInput {
   project_id: string
@@ -54,6 +63,23 @@ export const analysisApi = {
 
   getInformationFunctions: async (id: string): Promise<InformationFunctions> => {
     const response = await apiClient.get(`/analyses/${id}/information-functions`)
+    return response.data
+  },
+
+  // Polytomous model endpoints
+  getCategoryProbabilityCurves: async (id: string, item?: string): Promise<CategoryProbabilityCurve[]> => {
+    const params = item ? { item } : {}
+    const response = await apiClient.get(`/analyses/${id}/category-probability-curves`, { params })
+    return response.data
+  },
+
+  getWrightMap: async (id: string): Promise<WrightMapData> => {
+    const response = await apiClient.get(`/analyses/${id}/wright-map`)
+    return response.data
+  },
+
+  getItemFitStatistics: async (id: string): Promise<FitStatisticsItem[]> => {
+    const response = await apiClient.get(`/analyses/${id}/item-fit-statistics`)
     return response.data
   },
 
