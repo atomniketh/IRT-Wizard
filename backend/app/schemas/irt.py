@@ -133,3 +133,72 @@ class FitStatisticsItem(BaseModel):
     infit_zstd: float | None = None
     outfit_mnsq: float
     outfit_zstd: float | None = None
+
+
+# Phase 2: Additional Rasch Analyses schemas
+
+class ReliabilityStatistics(BaseModel):
+    """Reliability and separation statistics for Rasch models."""
+    person_reliability: float
+    item_reliability: float
+    person_separation: float
+    item_separation: float
+    person_strata: float
+    item_strata: float
+
+
+class PCARResult(BaseModel):
+    """Principal Component Analysis of Residuals result."""
+    eigenvalues: list[float]
+    variance_explained: list[float]
+    cumulative_variance: list[float]
+    first_contrast_eigenvalue: float
+    is_unidimensional: bool
+    loadings: list[dict] | None = None
+
+
+class DIFResult(BaseModel):
+    """Differential Item Functioning analysis result."""
+    item_name: str
+    focal_difficulty: float
+    reference_difficulty: float
+    dif_contrast: float
+    dif_se: float | None = None
+    dif_t: float | None = None
+    dif_p: float | None = None
+    dif_classification: str  # "A", "B", or "C"
+
+
+class CategoryStructureItem(BaseModel):
+    """Category structure statistics for one category."""
+    category: int
+    label: str
+    count: int
+    percent: float
+    observed_average: float | None = None
+    observed_sd: float | None = None
+    andrich_threshold: float | None = None
+    se_threshold: float | None = None
+    is_disordered: bool = False
+
+
+class CategoryStructureRecommendation(BaseModel):
+    """Recommendation based on category structure analysis."""
+    type: str  # "underutilized", "disordered", "non_monotonic"
+    severity: str  # "warning", "error"
+    message: str
+
+
+class CategoryStructureSummary(BaseModel):
+    """Summary of category structure analysis."""
+    total_responses: int
+    has_disordered_thresholds: bool
+    has_underutilized_categories: bool
+
+
+class CategoryStructureTable(BaseModel):
+    """Complete category structure analysis table."""
+    categories: list[CategoryStructureItem]
+    n_categories: int
+    recommendations: list[CategoryStructureRecommendation]
+    summary: CategoryStructureSummary

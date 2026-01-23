@@ -151,5 +151,41 @@ export const polytomousTooltips: Record<string, TooltipContent> = {
     student: "Shows how likely each response option is at different ability levels.",
     educator: "Category probability curves. Each curve shows probability of selecting that category. Peaks should be ordered.",
     researcher: "P(X=k|θ) for each category k. Andrich thresholds are where adjacent categories are equally likely."
+  },
+  // Phase 2: Additional tooltips
+  person_reliability: {
+    student: "How consistently we can measure people's abilities (higher is better).",
+    educator: "Person separation reliability. Similar to Cronbach's alpha. Range 0-1, with >0.80 being good.",
+    researcher: "Ratio of true to observed variance: (σ²_true)/(σ²_observed). Analogous to KR-20/Cronbach's α."
+  },
+  item_reliability: {
+    student: "How consistently we can measure item difficulties (higher is better).",
+    educator: "Item separation reliability. Indicates how well items spread across difficulty range.",
+    researcher: "Item analog of person reliability. High values indicate good item difficulty spread."
+  },
+  person_separation: {
+    student: "How many distinct ability levels we can reliably identify.",
+    educator: "Person separation index. Values >2 suggest adequate sensitivity to person differences.",
+    researcher: "G = √(true variance)/RMSE. Strata = (4G+1)/3 gives distinct performance levels."
+  },
+  item_separation: {
+    student: "How many distinct difficulty levels we can reliably identify.",
+    educator: "Item separation index. Higher values indicate better spread of item difficulties.",
+    researcher: "Item analog of person separation. Important for construct coverage."
+  },
+  pcar: {
+    student: "Tests whether all items measure the same thing.",
+    educator: "Principal Component Analysis of Residuals. Tests unidimensionality assumption.",
+    researcher: "PCAR: Eigenvalue <2.0 on first contrast suggests unidimensionality. Examines residual correlations after Rasch model."
+  },
+  dif: {
+    student: "Tests whether items work the same way for different groups of people.",
+    educator: "Differential Item Functioning. Detects if items favor certain groups unfairly.",
+    researcher: "DIF: Compares item difficulties across groups. |contrast|<0.43=A, <0.64=B, ≥0.64=C classification."
+  },
+  category_structure: {
+    student: "Shows how well each response option is working.",
+    educator: "Category structure analysis. Checks if response categories are functioning properly.",
+    researcher: "Andrich threshold ordering and category utilization. Disordered thresholds suggest category collapse needed."
   }
 }

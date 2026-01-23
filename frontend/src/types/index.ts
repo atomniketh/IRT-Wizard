@@ -136,6 +136,77 @@ export interface FitStatisticsItem {
   outfit_zstd: number | null
 }
 
+// Phase 2: Additional Rasch Analyses types
+
+export interface ReliabilityStatistics {
+  person_reliability: number
+  item_reliability: number
+  person_separation: number
+  item_separation: number
+  person_strata: number
+  item_strata: number
+}
+
+export interface PCARResult {
+  eigenvalues: number[]
+  variance_explained: number[]
+  cumulative_variance: number[]
+  first_contrast_eigenvalue: number
+  is_unidimensional: boolean
+  loadings: { item_index: number; loading: number }[] | null
+  note?: string
+}
+
+export interface DIFResult {
+  item_name: string
+  focal_difficulty: number
+  reference_difficulty: number
+  dif_contrast: number
+  dif_se: number | null
+  dif_t: number | null
+  dif_p: number | null
+  dif_classification: 'A' | 'B' | 'C'
+}
+
+export interface DIFAnalysisResult {
+  results: DIFResult[]
+  group_column: string | null
+  focal_group: string | null
+  reference_group: string | null
+  note?: string
+}
+
+export interface CategoryStructureItem {
+  category: number
+  label: string
+  count: number
+  percent: number
+  observed_average: number | null
+  observed_sd: number | null
+  andrich_threshold: number | null
+  se_threshold: number | null
+  is_disordered: boolean
+}
+
+export interface CategoryStructureRecommendation {
+  type: 'underutilized' | 'disordered' | 'non_monotonic'
+  severity: 'warning' | 'error'
+  message: string
+}
+
+export interface CategoryStructureSummary {
+  total_responses: number
+  has_disordered_thresholds: boolean
+  has_underutilized_categories: boolean
+}
+
+export interface CategoryStructureTable {
+  categories: CategoryStructureItem[]
+  n_categories: number
+  recommendations: CategoryStructureRecommendation[]
+  summary: CategoryStructureSummary
+}
+
 export interface ItemParametersResult {
   items: ItemParameter[]
 }
