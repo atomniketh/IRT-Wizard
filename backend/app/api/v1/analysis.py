@@ -9,6 +9,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from sqlalchemy import select
 
 from app.api.deps import DbSession, SettingsDep
+from app.core.analysis_logger import analysis_logger
 from app.core.irt_engine import fit_model, ModelType as IRTModelType
 from app.core.polytomous_engine import (
     fit_polytomous_model,
@@ -67,10 +68,14 @@ async def run_analysis_task(
         analysis.started_at = datetime.utcnow()
         session.commit()
 
+        analysis_logger.info(analysis_id, f"Starting {model_type} analysis...")
+        analysis_logger.step(analysis_id, "Initializing analysis environment")
+
         try:
             import boto3
             from botocore.config import Config
 
+            analysis_logger.step(analysis_id, "Connecting to data storage...")
             s3_client = boto3.client(
                 "s3",
                 endpoint_url=s3_settings["endpoint"],
@@ -78,6 +83,9 @@ async def run_analysis_task(
                 aws_secret_access_key=s3_settings["secret_key"],
                 config=Config(signature_version="s3v4"),
             )
+
+            analysis_logger.success(analysis_id, "Connected to data storage")
+            analysis_logger.step(analysis_id, f"Loading dataset: {dataset.original_filename or dataset.name}")
 
             response = s3_client.get_object(Bucket=s3_settings["bucket"], Key=dataset.file_path)
             content = response["Body"].read()
@@ -88,9 +96,13 @@ async def run_analysis_task(
                 else ","
             )
             df = pd.read_csv(io.BytesIO(content), sep=separator)
+            analysis_logger.success(analysis_id, f"Dataset loaded: {len(df)} rows, {len(df.columns)} columns")
 
             irt_model_type = IRTModelType(model_type)
             is_polytomous = is_polytomous_model(irt_model_type)
+            analysis_logger.info(analysis_id, f"Model type: {model_type} ({'polytomous' if is_polytomous else 'dichotomous'})")
+
+            analysis_logger.step(analysis_id, "Identifying response columns...")
 
             if is_polytomous:
                 # For polytomous models, find columns with ordinal data
@@ -104,6 +116,7 @@ async def run_analysis_task(
                 if len(ordinal_columns) < 2:
                     raise ValueError(f"Need at least 2 ordinal columns for polytomous models, found {len(ordinal_columns)}")
 
+                analysis_logger.success(analysis_id, f"Found {len(ordinal_columns)} ordinal response columns")
                 item_df = df[ordinal_columns]
                 data = item_df.values
                 data = np.nan_to_num(data, nan=0)
@@ -119,10 +132,14 @@ async def run_analysis_task(
                 if len(binary_columns) < 2:
                     raise ValueError(f"Need at least 2 binary columns, found {len(binary_columns)}")
 
+                analysis_logger.success(analysis_id, f"Found {len(binary_columns)} binary response columns")
                 item_df = df[binary_columns]
                 data = item_df.values
                 data = np.nan_to_num(data, nan=0).astype(int)
                 item_names = binary_columns
+
+            analysis_logger.info(analysis_id, f"Response matrix: {data.shape[0]} persons × {data.shape[1]} items")
+            analysis_logger.step(analysis_id, "Setting up MLflow experiment tracking...")
 
             experiment = mlflow.get_experiment_by_name("IRT-Analyses")
             if experiment is None:
@@ -145,13 +162,20 @@ async def run_analysis_task(
                     for key, value in config.items():
                         mlflow.log_param(f"config_{key}", value)
 
+                analysis_logger.success(analysis_id, "MLflow tracking configured")
+
                 if is_polytomous:
                     # Fit polytomous model (RSM or PCM)
+                    analysis_logger.step(analysis_id, f"Fitting {model_type} polytomous model...")
+                    analysis_logger.info(analysis_id, "This may take a few minutes for large datasets...")
                     result = fit_polytomous_model(
                         data=data,
                         model_type=irt_model_type,
                         item_names=item_names,
                     )
+
+                    analysis_logger.success(analysis_id, f"Model fitting complete (converged: {result.converged})")
+                    analysis_logger.step(analysis_id, "Logging metrics to MLflow...")
 
                     mlflow.log_metric("aic", result.model_fit["aic"])
                     mlflow.log_metric("bic", result.model_fit["bic"])
@@ -234,11 +258,15 @@ async def run_analysis_task(
 
                 else:
                     # Fit dichotomous model (1PL, 2PL, or 3PL)
+                    analysis_logger.step(analysis_id, f"Fitting {model_type} dichotomous model...")
                     result = fit_model(
                         data=data,
                         model_type=irt_model_type,
                         item_names=item_names,
                     )
+
+                    analysis_logger.success(analysis_id, f"Model fitting complete (converged: {result.converged})")
+                    analysis_logger.step(analysis_id, "Logging metrics to MLflow...")
 
                     mlflow.log_metric("aic", result.model_fit["aic"])
                     mlflow.log_metric("bic", result.model_fit["bic"])
@@ -301,13 +329,17 @@ async def run_analysis_task(
 
                     analysis.model_fit = result.model_fit
 
+            analysis_logger.step(analysis_id, "Storing results in database...")
             analysis.status = "completed"
             analysis.completed_at = datetime.utcnow()
+            analysis_logger.success(analysis_id, "Analysis completed successfully!")
+            analysis_logger.info(analysis_id, f"AIC: {result.model_fit['aic']:.2f}, BIC: {result.model_fit['bic']:.2f}")
 
         except Exception as e:
             analysis.status = "failed"
             analysis.error_message = str(e)
             analysis.completed_at = datetime.utcnow()
+            analysis_logger.error(analysis_id, f"Analysis failed: {str(e)}")
 
         session.commit()
 
@@ -381,6 +413,20 @@ async def get_analysis_status(analysis_id: uuid.UUID, db: DbSession) -> dict[str
         "status": analysis.status,
         "progress": None,
         "message": analysis.error_message if analysis.status == "failed" else None,
+    }
+
+
+@router.get("/{analysis_id}/logs")
+async def get_analysis_logs(
+    analysis_id: uuid.UUID,
+    since: int = 0,
+) -> dict[str, Any]:
+    """Get real-time logs for an analysis."""
+    logs = analysis_logger.get_logs(analysis_id, since_index=since)
+    return {
+        "logs": logs,
+        "count": len(logs),
+        "next_index": since + len(logs),
     }
 
 

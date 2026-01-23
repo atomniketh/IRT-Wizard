@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Loader2 } from 'lucide-react'
-import { useAnalysis } from '@/hooks/useAnalysis'
+import { TerminalWindow } from '../../common/TerminalWindow'
+import { analysisApi } from '@/api/analysis'
 import type { WizardContext, WizardEvent } from '../WizardMachine'
 
 interface AnalysisRunningProps {
@@ -9,20 +10,72 @@ interface AnalysisRunningProps {
 }
 
 export function AnalysisRunning({ send, context }: AnalysisRunningProps) {
-  const analysisId = context.analysis?.id || null
-  const { status, isCompleted, isFailed, analysis, error } = useAnalysis(analysisId)
+  const [status, setStatus] = useState<string>('pending')
+  const [logs, setLogs] = useState<string[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const logIndexRef = useRef(0)
+  const analysisIdRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (isCompleted && analysis) {
-      send({ type: 'ANALYSIS_COMPLETE', analysis })
+    if (!context.analysis?.id) return
+
+    const analysisId = context.analysis.id
+    analysisIdRef.current = analysisId
+
+    const pollStatusAndLogs = async () => {
+      try {
+        const [statusRes, logsRes] = await Promise.all([
+          analysisApi.getStatus(analysisId),
+          analysisApi.getLogs(analysisId, logIndexRef.current),
+        ])
+
+        setStatus(statusRes.status)
+
+        if (logsRes.logs.length > 0) {
+          setLogs((prev) => [...prev, ...logsRes.logs])
+          logIndexRef.current = logsRes.next_index
+        }
+
+        if (statusRes.status === 'completed') {
+          const fullAnalysis = await analysisApi.get(analysisId)
+          send({ type: 'ANALYSIS_COMPLETE', analysis: fullAnalysis })
+        } else if (statusRes.status === 'failed') {
+          setError(statusRes.message || 'Analysis failed')
+          send({ type: 'ANALYSIS_FAILED', error: statusRes.message || 'Analysis failed' })
+        } else {
+          setTimeout(pollStatusAndLogs, 1000)
+        }
+      } catch (err) {
+        console.error('Error polling analysis status:', err)
+        setTimeout(pollStatusAndLogs, 2000)
+      }
     }
-    if (isFailed && error) {
-      send({ type: 'ANALYSIS_FAILED', error })
+
+    setLogs([`$ Starting ${context.modelType} analysis...`])
+    pollStatusAndLogs()
+
+    return () => {
+      analysisIdRef.current = null
     }
-  }, [isCompleted, isFailed, analysis, error, send])
+  }, [context.analysis?.id, context.modelType, send])
+
+  const getStatusText = () => {
+    switch (status) {
+      case 'pending':
+        return 'Initializing...'
+      case 'running':
+        return 'Running analysis...'
+      case 'completed':
+        return 'Completed!'
+      case 'failed':
+        return 'Failed'
+      default:
+        return status
+    }
+  }
 
   return (
-    <div className="py-12">
+    <div className="py-8 space-y-8">
       <div className="text-center space-y-6">
         <div className="flex justify-center">
           <div className="relative">
@@ -42,19 +95,33 @@ export function AnalysisRunning({ send, context }: AnalysisRunningProps) {
 
         <div className="max-w-md mx-auto">
           <div className="bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-            <div className="bg-primary-600 h-full animate-pulse" style={{ width: '60%' }} />
+            <div
+              className="bg-primary-600 h-full transition-all duration-500"
+              style={{
+                width: status === 'completed' ? '100%' : status === 'running' ? '60%' : '20%',
+              }}
+            />
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-            Status: {status}
+            Status: {getStatusText()}
           </p>
         </div>
-
-        <div className="text-sm text-gray-500 dark:text-gray-400 space-y-1">
-          <p>Estimating item parameters...</p>
-          <p>Computing ability estimates...</p>
-          <p>Calculating fit statistics...</p>
-        </div>
       </div>
+
+      {/* Terminal Window */}
+      <div className="max-w-3xl mx-auto">
+        <TerminalWindow
+          title={`${context.modelType} Analysis — ${context.dataset?.original_filename || 'Dataset'}`}
+          logs={logs}
+          maxHeight="350px"
+        />
+      </div>
+
+      {error && (
+        <div className="max-w-3xl mx-auto p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400">
+          {error}
+        </div>
+      )}
     </div>
   )
 }

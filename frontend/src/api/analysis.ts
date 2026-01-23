@@ -45,6 +45,11 @@ export const analysisApi = {
     return response.data
   },
 
+  getLogs: async (id: string, since: number = 0): Promise<{ logs: string[]; count: number; next_index: number }> => {
+    const response = await apiClient.get(`/analyses/${id}/logs`, { params: { since } })
+    return response.data
+  },
+
   getItemParameters: async (id: string) => {
     const response = await apiClient.get(`/analyses/${id}/item-parameters`)
     return response.data
