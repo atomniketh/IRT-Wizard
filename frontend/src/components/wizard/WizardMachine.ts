@@ -16,7 +16,7 @@ export type WizardEvent =
   | { type: 'CREATE_PROJECT'; project: Project }
   | { type: 'UPLOAD_DATA'; dataset: Dataset; project?: Project }
   | { type: 'VALIDATE_DATA' }
-  | { type: 'SELECT_MODEL'; modelType: ModelType; config?: Record<string, unknown> }
+  | { type: 'SELECT_MODEL'; modelType: ModelType; config?: Record<string, unknown>; analysis?: Analysis }
   | { type: 'START_ANALYSIS' }
   | { type: 'ANALYSIS_COMPLETE'; analysis: Analysis }
   | { type: 'ANALYSIS_FAILED'; error: string }
@@ -83,6 +83,8 @@ export const wizardMachine = createMachine({
           actions: assign({
             modelType: ({ event }) => event.modelType,
             analysisConfig: ({ event }) => event.config ?? null,
+            analysis: ({ event }) => event.analysis ?? null,
+            error: null,
           }),
         },
         BACK: 'dataPreview',

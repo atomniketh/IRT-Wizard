@@ -143,22 +143,7 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
         name: `${selectedModel} Analysis`,
       })
 
-      send({ type: 'SELECT_MODEL', modelType: selectedModel })
-
-      const pollStatus = async () => {
-        const status = await analysisApi.getStatus(analysis.id)
-        if (status.status === 'completed') {
-          const fullAnalysis = await analysisApi.get(analysis.id)
-          send({ type: 'ANALYSIS_COMPLETE', analysis: fullAnalysis })
-        } else if (status.status === 'failed') {
-          setIsSubmitting(false)
-          send({ type: 'ANALYSIS_FAILED', error: status.message || 'Analysis failed' })
-        } else {
-          setTimeout(pollStatus, 2000)
-        }
-      }
-
-      pollStatus()
+      send({ type: 'SELECT_MODEL', modelType: selectedModel, analysis })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start analysis')
       setIsSubmitting(false)

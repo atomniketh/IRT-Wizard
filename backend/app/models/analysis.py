@@ -31,6 +31,7 @@ class Analysis(Base):
     item_parameters: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     ability_estimates: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     model_fit: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    logs: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True, default=list)
 
     mlflow_run_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
     mlflow_model_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
