@@ -29,6 +29,11 @@ class Dataset(Base):
     data_summary: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     validation_status: Mapped[str] = mapped_column(String(20), default="pending")
     validation_errors: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, nullable=True)
+    # Response scale detection fields
+    response_scale: Mapped[str | None] = mapped_column(String(20), nullable=True)  # "binary" | "ordinal" | "mixed"
+    min_response: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_response: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    n_categories: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -25,6 +25,11 @@ class DatasetRead(DatasetBase):
     data_summary: dict[str, Any] | None = None
     validation_status: str
     validation_errors: list[dict[str, Any]] | None = None
+    # Response scale detection fields
+    response_scale: str | None = None  # "binary" | "ordinal" | "mixed"
+    min_response: int | None = None
+    max_response: int | None = None
+    n_categories: int | None = None
     created_at: datetime
 
     class Config:
@@ -48,6 +53,11 @@ class DatasetUploadResponse(BaseModel):
     item_names: list[str]
     validation_status: str
     validation_errors: list[dict[str, Any]] | None = None
+    # Response scale detection fields
+    response_scale: str | None = None  # "binary" | "ordinal" | "mixed"
+    min_response: int | None = None
+    max_response: int | None = None
+    n_categories: int | None = None
 
     class Config:
         from_attributes = True
