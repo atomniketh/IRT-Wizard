@@ -15,7 +15,7 @@ This file maintains a centralized list of all tickets in the project. Update thi
 ## Active Tickets
 
 ### High Priority
-- 🔴 [TICKET-002](./TICKET-002-rasch-polytomous-implementation.md) - Implement Rasch Polytomous Model Support and Paper-Aligned Visualizations
+_No high priority tickets_
 
 ### Medium Priority
 - 🔴 [TICKET-001](./TICKET-001-3pl-girth-compatibility.md) - Fix 3PL Model Support (girth library compatibility)
@@ -24,7 +24,7 @@ This file maintains a centralized list of all tickets in the project. Update thi
 _No low priority tickets yet_
 
 ## Completed Tickets
-_No completed tickets yet_
+- 🟢 [TICKET-002](./TICKET-002-rasch-polytomous-implementation.md) - Implement Rasch Polytomous Model Support and Paper-Aligned Visualizations (Completed: 2026-01-23)
 
 ## Cancelled/Archived Tickets
 _No cancelled tickets yet_
