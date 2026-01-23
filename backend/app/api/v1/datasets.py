@@ -68,6 +68,10 @@ async def upload_dataset(
         data_summary=data_summary,
         validation_status="valid" if validation_result["is_valid"] else "invalid",
         validation_errors=validation_result.get("errors"),
+        response_scale=validation_result.get("response_scale"),
+        min_response=validation_result.get("min_response"),
+        max_response=validation_result.get("max_response"),
+        n_categories=validation_result.get("n_categories"),
     )
     db.add(dataset)
     await db.commit()
@@ -127,6 +131,10 @@ async def fetch_dataset_from_url(
         data_summary=data_summary,
         validation_status="valid" if validation_result["is_valid"] else "invalid",
         validation_errors=validation_result.get("errors"),
+        response_scale=validation_result.get("response_scale"),
+        min_response=validation_result.get("min_response"),
+        max_response=validation_result.get("max_response"),
+        n_categories=validation_result.get("n_categories"),
     )
     db.add(dataset)
     await db.commit()

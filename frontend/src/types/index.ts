@@ -18,6 +18,8 @@ export interface Project {
   updated_at: string
 }
 
+export type ResponseScale = 'binary' | 'ordinal' | 'mixed' | 'unknown'
+
 export interface Dataset {
   id: string
   project_id: string
@@ -31,7 +33,32 @@ export interface Dataset {
   data_summary: Record<string, unknown> | null
   validation_status: string
   validation_errors: ValidationError[] | null
+  // Response scale detection fields
+  response_scale: ResponseScale | null
+  min_response: number | null
+  max_response: number | null
+  n_categories: number | null
   created_at: string
+}
+
+// Helper function to check if a dataset has polytomous data
+export function isPolytomousData(dataset: Dataset | null): boolean {
+  if (!dataset) return false
+  return dataset.response_scale === 'ordinal' && (dataset.n_categories ?? 0) > 2
+}
+
+// Helper function to get recommended model types based on response scale
+export function getRecommendedModels(responseScale: ResponseScale | null): ModelType[] {
+  switch (responseScale) {
+    case 'binary':
+      return ['1PL', '2PL', '3PL']
+    case 'ordinal':
+      return ['RSM', 'PCM']
+    case 'mixed':
+      return ['1PL', '2PL', '3PL', 'RSM', 'PCM']
+    default:
+      return ['1PL', '2PL', '3PL', 'RSM', 'PCM']
+  }
 }
 
 export interface ValidationError {
