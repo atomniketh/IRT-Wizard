@@ -13,6 +13,7 @@ import { FitStatisticsTable } from '../../charts/FitStatisticsTable'
 import { CategoryStructureTable } from '../../charts/CategoryStructureTable'
 import { DIFAnalysisTable } from '../../charts/DIFAnalysisTable'
 import { isPolytomousModel } from '@/types'
+import type { PolytomousItemParameter } from '@/types'
 import type { WizardContext, WizardEvent } from '../WizardMachine'
 
 type TabId = 'summary' | 'parameters' | 'abilities' | 'visualizations' | 'fit' | 'category-analysis'
@@ -152,7 +153,7 @@ export function Results({ send, context }: ResultsProps) {
         if (isPolytomous) {
           return (
             <PolytomousItemParametersTable
-              items={analysis.item_parameters?.items || []}
+              items={(analysis.item_parameters?.items || []) as unknown as PolytomousItemParameter[]}
               modelType={analysis.model_type}
             />
           )
