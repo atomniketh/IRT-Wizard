@@ -236,7 +236,7 @@ girth.grm_mml()  # Graded Response Model (alternative)
 High
 
 ## Status
-Todo
+Done
 
 ## Estimated Effort
 - Phase 1 (Backend Core): Large
