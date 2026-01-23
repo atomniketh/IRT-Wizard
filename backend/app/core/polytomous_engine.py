@@ -77,16 +77,17 @@ def fit_polytomous_model(
 
     person_ids = [f"Person_{i+1}" for i in range(n_persons)]
 
-    # Determine number of categories from data
-    min_response = int(np.nanmin(data))
-    max_response = int(np.nanmax(data))
-    n_categories = max_response - min_response + 1
+    # Determine number of categories from unique values in data
+    unique_vals = np.unique(data[~np.isnan(data)])
+    unique_vals = np.sort(unique_vals.astype(int))
+    n_categories = len(unique_vals)
+    min_response = int(unique_vals[0])
 
-    # Normalize data to start from 0 if needed
-    if min_response != 0:
-        data_normalized = data - min_response
-    else:
-        data_normalized = data.copy()
+    # Remap data to 0-based consecutive categories using vectorized lookup
+    val_to_cat = {int(v): i for i, v in enumerate(unique_vals)}
+    data_flat = data.flatten()
+    data_normalized_flat = np.array([val_to_cat.get(int(v), 0) if not np.isnan(v) else 0 for v in data_flat])
+    data_normalized = data_normalized_flat.reshape(data.shape).astype(float)
 
     # Calculate category counts
     category_counts = np.zeros(n_categories, dtype=int)
@@ -324,60 +325,81 @@ def _estimate_abilities_polytomous(
     thresholds: np.ndarray,
     model_type: ModelType,
 ) -> np.ndarray:
-    """Estimate person abilities using Expected A Posteriori (EAP) - vectorized version."""
+    """Estimate person abilities using Expected A Posteriori (EAP) - fully vectorized."""
     n_persons, n_items = data.shape
     n_categories = len(thresholds) + 1 if thresholds.ndim == 1 else thresholds.shape[1] + 1
 
-    # Quadrature points for numerical integration (reduced from 41 to 21 for speed)
     n_quad = 21
     quad_points = np.linspace(-4, 4, n_quad)
     quad_weights = np.exp(-quad_points**2 / 2) / np.sqrt(2 * np.pi)
     quad_weights = quad_weights / np.sum(quad_weights)
 
-    # Precompute all category probabilities for all items at all quadrature points
-    # Shape: (n_quad, n_items, n_categories)
-    all_probs = np.zeros((n_quad, n_items, n_categories))
+    log_probs = _compute_all_log_probs_vectorized(
+        quad_points, difficulty, thresholds, n_categories, n_items, model_type
+    )
+
+    data_int = np.nan_to_num(data, nan=0).astype(int)
+    valid_mask = ~np.isnan(data)
+
+    item_indices = np.arange(n_items)
+    log_likelihoods = np.zeros((n_persons, n_quad))
+
+    for q in range(n_quad):
+        item_log_probs = log_probs[q, item_indices, data_int]
+        item_log_probs = np.where(valid_mask, item_log_probs, 0.0)
+        log_likelihoods[:, q] = np.sum(item_log_probs, axis=1)
+
+    max_ll = np.max(log_likelihoods, axis=1, keepdims=True)
+    likelihoods = np.exp(log_likelihoods - max_ll)
+    posteriors = likelihoods * quad_weights
+    posteriors = posteriors / np.sum(posteriors, axis=1, keepdims=True)
+    theta = np.sum(quad_points * posteriors, axis=1)
+
+    return theta
+
+
+def _compute_all_log_probs_vectorized(
+    quad_points: np.ndarray,
+    difficulty: np.ndarray,
+    thresholds: np.ndarray,
+    n_categories: int,
+    n_items: int,
+    model_type: ModelType,
+) -> np.ndarray:
+    """Compute log probabilities for all quadrature points, items, and categories - vectorized."""
+    n_quad = len(quad_points)
+
+    if model_type == ModelType.RSM:
+        thresh = thresholds
+    else:
+        thresh = thresholds
+
+    all_log_probs = np.zeros((n_quad, n_items, n_categories))
+
+    cumsum_base = np.zeros(n_categories)
+    for k in range(1, n_categories):
+        if model_type == ModelType.RSM:
+            cumsum_base[k] = cumsum_base[k-1] - thresholds[k-1]
+        else:
+            cumsum_base[k] = 0
 
     for q, theta_q in enumerate(quad_points):
         for j in range(n_items):
-            item_thresh = thresholds if model_type == ModelType.RSM else thresholds[j]
-            for k in range(n_categories):
-                all_probs[q, j, k] = compute_category_probability(theta_q, difficulty[j], item_thresh, k)
+            if model_type == ModelType.RSM:
+                item_cumsum = cumsum_base.copy()
+                for k in range(n_categories):
+                    item_cumsum[k] += k * (theta_q - difficulty[j])
+            else:
+                item_cumsum = np.zeros(n_categories)
+                for k in range(1, n_categories):
+                    item_cumsum[k] = item_cumsum[k-1] + (theta_q - difficulty[j] - thresholds[j, k-1])
 
-    # Clip probabilities to avoid log(0)
-    all_probs = np.clip(all_probs, 1e-10, 1.0)
-    log_probs = np.log(all_probs)
+            max_val = np.max(item_cumsum)
+            exp_vals = np.exp(item_cumsum - max_val)
+            probs = exp_vals / np.sum(exp_vals)
+            all_log_probs[q, j, :] = np.log(np.clip(probs, 1e-10, 1.0))
 
-    # Vectorized computation of log-likelihoods for all persons
-    theta = np.zeros(n_persons)
-
-    # Process in batches for memory efficiency
-    batch_size = 100
-    for batch_start in range(0, n_persons, batch_size):
-        batch_end = min(batch_start + batch_size, n_persons)
-        batch_data = data[batch_start:batch_end]  # (batch, n_items)
-        batch_size_actual = batch_end - batch_start
-
-        # Compute log-likelihoods for this batch
-        log_likelihoods = np.zeros((batch_size_actual, n_quad))
-
-        for i in range(batch_size_actual):
-            for q in range(n_quad):
-                log_lik = 0.0
-                for j in range(n_items):
-                    if not np.isnan(batch_data[i, j]):
-                        k = int(batch_data[i, j])
-                        log_lik += log_probs[q, j, k]
-                log_likelihoods[i, q] = log_lik
-
-        # Compute EAP for batch
-        max_ll = np.max(log_likelihoods, axis=1, keepdims=True)
-        likelihoods = np.exp(log_likelihoods - max_ll)
-        posteriors = likelihoods * quad_weights
-        posteriors = posteriors / np.sum(posteriors, axis=1, keepdims=True)
-        theta[batch_start:batch_end] = np.sum(quad_points * posteriors, axis=1)
-
-    return theta
+    return all_log_probs
 
 
 def compute_category_probability(

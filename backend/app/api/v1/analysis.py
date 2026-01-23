@@ -129,16 +129,23 @@ def run_analysis_task(
             log_to_db(session, analysis, "Identifying response columns...", "step")
 
             if is_polytomous:
-                # For polytomous models, find columns with ordinal data
+                # For polytomous models, find columns with ordinal data (3-15 categories)
                 ordinal_columns = []
                 for col in df.columns:
                     unique_vals = df[col].dropna().unique()
-                    # Accept columns with numeric ordinal values
-                    if len(unique_vals) >= 2 and all(isinstance(v, (int, float)) for v in unique_vals):
-                        ordinal_columns.append(col)
+                    if len(unique_vals) >= 3:
+                        try:
+                            sorted_vals = sorted([float(v) for v in unique_vals])
+                            if all(v == int(v) for v in sorted_vals):
+                                min_val, max_val = int(sorted_vals[0]), int(sorted_vals[-1])
+                                n_categories = max_val - min_val + 1
+                                if 3 <= n_categories <= 15:
+                                    ordinal_columns.append(col)
+                        except (ValueError, TypeError):
+                            pass
 
                 if len(ordinal_columns) < 2:
-                    raise ValueError(f"Need at least 2 ordinal columns for polytomous models, found {len(ordinal_columns)}")
+                    raise ValueError(f"Need at least 2 ordinal columns (3-15 categories each) for polytomous models, found {len(ordinal_columns)}")
 
                 log_to_db(session, analysis, f"Found {len(ordinal_columns)} ordinal response columns", "success")
                 item_df = df[ordinal_columns]

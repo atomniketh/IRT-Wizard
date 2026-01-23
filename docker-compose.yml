@@ -53,6 +53,7 @@ services:
 
   backend:
     build: ./backend
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-irt_user}:${POSTGRES_PASSWORD:-irt_password}@postgres:5432/${POSTGRES_DB:-irt_wizard}
       S3_ENDPOINT_URL: http://seaweedfs:8333
