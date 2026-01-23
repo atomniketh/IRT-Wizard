@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { ArrowUpDown, AlertTriangle, Info } from 'lucide-react'
-import { Tooltip } from '../common/Tooltip'
 import { useCompetencyLevel } from '@/hooks/useCompetencyLevel'
 
 interface DIFResult {
@@ -55,7 +54,7 @@ export function DIFAnalysisTable({ analysisId, groupVariable = 'group' }: DIFAna
   const [error, setError] = useState<string | null>(null)
   const [sortField, setSortField] = useState<SortField>('item_name')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
-  const [availableGroups, setAvailableGroups] = useState<string[]>([])
+  const [availableGroups] = useState<string[]>([])
   const [selectedGroup, setSelectedGroup] = useState<string>(groupVariable)
 
   const { isStudent, isResearcher } = useCompetencyLevel()

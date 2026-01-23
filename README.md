@@ -4,11 +4,35 @@ A web-based application for Item Response Theory (IRT) analysis, designed for ai
 
 ## Features
 
-- **IRT Models**: 1PL (Rasch), 2PL, 3PL dichotomous models
+### IRT Models
+- **Dichotomous Models**: 1PL (Rasch), 2PL, 3PL for binary (0/1) response data
+- **Polytomous Models**: Rating Scale Model (RSM) and Partial Credit Model (PCM) for Likert-scale data (e.g., 1-7 scales)
+
+### Data Import
+- CSV and TSV file upload or URL fetch
+- **Auto-detect response scale**: Automatically identifies binary vs. polytomous data
+- Smart model selection based on detected data type
+
+### Visualizations
+- Item Characteristic Curves (ICC)
+- Test Information Functions
+- Ability Distributions
+- **Category Probability Curves** (for polytomous models)
+- **Wright Map** (person-item targeting visualization)
+- **Fit Statistics Table** with MNSQ infit/outfit values
+- **DIF Analysis** visualization by demographic groups
+
+### Analyses
+- Item parameter estimation with standard errors
+- Person ability (theta) estimates
+- **PCAR** (Principal Component Analysis of Residuals) for unidimensionality testing
+- **DIF Analysis** (Differential Item Functioning) by demographic groups
+- **Reliability Coefficients** (person/item separation indices)
+- Category structure analysis for polytomous items
+
+### Other Features
 - **Adaptive UI**: Three user modes (Researcher, Educator, Student) with tailored explanations
 - **Air-gapped Ready**: No external network dependencies required
-- **Data Import**: CSV and TSV file upload or URL fetch
-- **Visualizations**: Item Characteristic Curves, Information Functions, Ability Distributions
 - **Export Options**: CSV, Excel, PDF reports (summary or detailed)
 
 ## Quick Start

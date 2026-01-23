@@ -55,7 +55,7 @@ def fit_model(
 
     person_ids = [f"Person_{i+1}" for i in range(n_persons)]
 
-    data_for_girth = data.T
+    data_for_girth = data.T.astype(int)
 
     se_difficulty = None
     se_discrimination = None
