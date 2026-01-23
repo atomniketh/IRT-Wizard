@@ -100,7 +100,26 @@ def fit_polytomous_model(
     # Note: Girth uses pcm_mml for Partial Credit Model
     # For RSM, we use PCM and then average thresholds across items
     try:
-        estimates = girth.pcm_mml(data_for_girth)
+        import warnings
+        import signal
+
+        class TimeoutError(Exception):
+            pass
+
+        def timeout_handler(signum, frame):
+            raise TimeoutError("Model fitting timed out")
+
+        # Set timeout for model fitting (120 seconds max)
+        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(120)
+
+        try:
+            with warnings.catch_warnings():
+                warnings.filterwarnings('ignore', category=RuntimeWarning)
+                estimates = girth.pcm_mml(data_for_girth)
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
 
         # Extract difficulty parameters
         difficulty = estimates["Difficulty"]  # Shape: (n_items,)
@@ -135,7 +154,8 @@ def fit_polytomous_model(
         converged = True
 
     except Exception as e:
-        # Fallback: estimate parameters using simpler method
+        # Fallback: estimate parameters using simpler method (used when girth times out or fails)
+        print(f"Girth PCM fitting failed or timed out: {e}. Using fallback estimation.")
         difficulty, thresholds = _estimate_parameters_fallback(data_normalized, n_categories, model_type)
         converged = False
 
