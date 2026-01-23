@@ -151,6 +151,7 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
           const fullAnalysis = await analysisApi.get(analysis.id)
           send({ type: 'ANALYSIS_COMPLETE', analysis: fullAnalysis })
         } else if (status.status === 'failed') {
+          setIsSubmitting(false)
           send({ type: 'ANALYSIS_FAILED', error: status.message || 'Analysis failed' })
         } else {
           setTimeout(pollStatus, 2000)
@@ -411,9 +412,9 @@ export function ModelSelection({ send, context }: ModelSelectionProps) {
         </div>
       )}
 
-      {error && (
+      {(error || context.error) && (
         <div className="p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400">
-          {error}
+          {error || context.error}
         </div>
       )}
 
