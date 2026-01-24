@@ -159,7 +159,7 @@ export function About() {
             formula="P(X=1|θ) = c + (1-c) / (1 + exp(-a(θ - b)))"
             parameters={['a (discrimination)', 'b (difficulty)', 'c (guessing)']}
             description="Adds a lower asymptote parameter to account for guessing on multiple-choice items."
-            available={false}
+            available={true}
           />
         </div>
 
@@ -205,7 +205,13 @@ export function About() {
                 <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">Discrimination</td>
                 <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 font-mono">a</td>
                 <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">0.5 to 2.5</td>
-                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">Slope of the ICC at the difficulty point; higher = better differentiation (2PL only)</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">Slope of the ICC at the difficulty point; higher = better differentiation (2PL/3PL)</td>
+              </tr>
+              <tr>
+                <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">Guessing</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 font-mono">c</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">0 to 0.35</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">Lower asymptote; probability of correct response by guessing (3PL only)</td>
               </tr>
               <tr>
                 <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">Threshold</td>
@@ -296,7 +302,7 @@ export function About() {
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Data Requirements</h2>
         <div className="grid gap-6 md:grid-cols-2">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Dichotomous Models (1PL, 2PL)</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Dichotomous Models (1PL, 2PL, 3PL)</h3>
             <ul className="space-y-3 text-gray-600 dark:text-gray-400 text-sm">
               <li className="flex items-start">
                 <span className="text-primary-600 dark:text-primary-400 mr-2">•</span>
