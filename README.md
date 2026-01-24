@@ -6,6 +6,7 @@ A web-based application for Item Response Theory (IRT) analysis, designed for ai
 
 ### IRT Models
 - **Dichotomous Models**: 1PL (Rasch), 2PL, 3PL for binary (0/1) response data
+  - 3PL includes guessing parameter estimation for multiple-choice items
 - **Polytomous Models**: Rating Scale Model (RSM) and Partial Credit Model (PCM) for Likert-scale data (e.g., 1-7 scales)
 
 ### Data Import
