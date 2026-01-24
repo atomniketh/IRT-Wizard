@@ -5,23 +5,64 @@ from typing import Any
 import pandas as pd
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
-from app.api.deps import DbSession, SettingsDep
+from app.api.deps import DbSession, SettingsDep, CurrentUser
 from app.models.dataset import Dataset
+from app.models.project import Project
 from app.schemas.dataset import DatasetRead, DatasetPreview, DatasetUploadResponse
 from app.services.storage import StorageService
+from app.services.permissions import PermissionServiceDep
 from app.utils.data_validation import validate_response_matrix
 
 router = APIRouter()
 
 
+async def _get_project_with_access(
+    project_id: uuid.UUID,
+    db: DbSession,
+    permissions: PermissionServiceDep,
+    permission_code: str = "dataset:create",
+) -> Project:
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    await permissions.require_project_access(project, permission_code)
+    return project
+
+
+async def _get_dataset_with_access(
+    dataset_id: uuid.UUID,
+    db: DbSession,
+    permissions: PermissionServiceDep,
+    permission_code: str = "dataset:read",
+) -> Dataset:
+    result = await db.execute(
+        select(Dataset)
+        .options(selectinload(Dataset.project))
+        .where(Dataset.id == dataset_id)
+    )
+    dataset = result.scalar_one_or_none()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    await permissions.require_project_access(dataset.project, permission_code)
+    return dataset
+
+
 @router.post("/upload", response_model=DatasetUploadResponse, status_code=status.HTTP_201_CREATED)
 async def upload_dataset(
     project_id: uuid.UUID,
+    db: DbSession,
+    settings: SettingsDep,
+    current_user: CurrentUser,
+    permissions: PermissionServiceDep,
     file: UploadFile = File(...),
-    db: DbSession = None,
-    settings: SettingsDep = None,
 ) -> Dataset:
+    project = await _get_project_with_access(project_id, db, permissions, "dataset:create")
+
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
@@ -64,9 +105,10 @@ async def upload_dataset(
         })
 
     cleaned_content = df.to_csv(index=False).encode('utf-8')
+    owner_id = str(project.owner_organization_id or project.owner_user_id)
     storage = StorageService(settings)
     storage_filename = file.filename.rsplit('.', 1)[0] + '.csv' if not file.filename.lower().endswith('.csv') else file.filename
-    file_path = await storage.upload_file(cleaned_content, storage_filename, str(project_id))
+    file_path = await storage.upload_file(cleaned_content, storage_filename, str(project_id), owner_id)
 
     item_names = list(df.columns)
     data_summary = {
@@ -103,10 +145,14 @@ async def upload_dataset(
 async def fetch_dataset_from_url(
     project_id: uuid.UUID,
     url: str,
-    db: DbSession = None,
-    settings: SettingsDep = None,
+    db: DbSession,
+    settings: SettingsDep,
+    current_user: CurrentUser,
+    permissions: PermissionServiceDep,
 ) -> Dataset:
     import httpx
+
+    project = await _get_project_with_access(project_id, db, permissions, "dataset:create")
 
     try:
         async with httpx.AsyncClient() as client:
@@ -147,9 +193,10 @@ async def fetch_dataset_from_url(
         })
 
     cleaned_content = df.to_csv(index=False).encode('utf-8')
+    owner_id = str(project.owner_organization_id or project.owner_user_id)
     storage = StorageService(settings)
     storage_filename = filename.rsplit('.', 1)[0] + '.csv' if not filename.lower().endswith('.csv') else filename
-    file_path = await storage.upload_file(cleaned_content, storage_filename, str(project_id))
+    file_path = await storage.upload_file(cleaned_content, storage_filename, str(project_id), owner_id)
 
     item_names = list(df.columns)
     data_summary = {
@@ -183,12 +230,13 @@ async def fetch_dataset_from_url(
 
 
 @router.get("/{dataset_id}", response_model=DatasetRead)
-async def get_dataset(dataset_id: uuid.UUID, db: DbSession) -> Dataset:
-    result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
-    dataset = result.scalar_one_or_none()
-    if not dataset:
-        raise HTTPException(status_code=404, detail="Dataset not found")
-    return dataset
+async def get_dataset(
+    dataset_id: uuid.UUID,
+    db: DbSession,
+    current_user: CurrentUser,
+    permissions: PermissionServiceDep,
+) -> Dataset:
+    return await _get_dataset_with_access(dataset_id, db, permissions, "dataset:read")
 
 
 @router.get("/{dataset_id}/preview", response_model=DatasetPreview)
@@ -196,12 +244,11 @@ async def preview_dataset(
     dataset_id: uuid.UUID,
     db: DbSession,
     settings: SettingsDep,
+    current_user: CurrentUser,
+    permissions: PermissionServiceDep,
     rows: int = 10,
 ) -> dict[str, Any]:
-    result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
-    dataset = result.scalar_one_or_none()
-    if not dataset:
-        raise HTTPException(status_code=404, detail="Dataset not found")
+    dataset = await _get_dataset_with_access(dataset_id, db, permissions, "dataset:read")
 
     if not dataset.file_path:
         raise HTTPException(status_code=400, detail="Dataset has no file")
@@ -221,11 +268,14 @@ async def preview_dataset(
 
 
 @router.delete("/{dataset_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_dataset(dataset_id: uuid.UUID, db: DbSession, settings: SettingsDep) -> None:
-    result = await db.execute(select(Dataset).where(Dataset.id == dataset_id))
-    dataset = result.scalar_one_or_none()
-    if not dataset:
-        raise HTTPException(status_code=404, detail="Dataset not found")
+async def delete_dataset(
+    dataset_id: uuid.UUID,
+    db: DbSession,
+    settings: SettingsDep,
+    current_user: CurrentUser,
+    permissions: PermissionServiceDep,
+) -> None:
+    dataset = await _get_dataset_with_access(dataset_id, db, permissions, "dataset:delete")
 
     if dataset.file_path:
         storage = StorageService(settings)

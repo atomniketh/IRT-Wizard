@@ -30,9 +30,18 @@ class StorageService:
             except Exception:
                 pass
 
-    async def upload_file(self, content: bytes, filename: str, project_id: str) -> str:
+    async def upload_file(
+        self,
+        content: bytes,
+        filename: str,
+        project_id: str,
+        owner_id: str | None = None,
+    ) -> str:
         file_id = str(uuid.uuid4())
-        key = f"{project_id}/{file_id}/{filename}"
+        if owner_id:
+            key = f"{owner_id}/{project_id}/{file_id}/{filename}"
+        else:
+            key = f"{project_id}/{file_id}/{filename}"
         self.client.put_object(Bucket=self.bucket, Key=key, Body=content)
         return key
 

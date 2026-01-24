@@ -24,6 +24,9 @@ class ProjectUpdate(BaseModel):
 
 class ProjectRead(ProjectBase):
     id: uuid.UUID
+    visibility: str = "private"
+    owner_user_id: uuid.UUID | None = None
+    owner_organization_id: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime
 

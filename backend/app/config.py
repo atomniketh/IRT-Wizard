@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     max_upload_size_mb: int = 100
     max_rows_preview: int = 10
 
+    auth_provider: str = "dev"
+    auth0_domain: str = ""
+    auth0_audience: str = ""
+    auth0_client_id: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

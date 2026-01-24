@@ -13,9 +13,26 @@ class Base(DeclarativeBase):
     pass
 
 
+from app.models.role import Permission, Role
+from app.models.user import User
+from app.models.organization import Organization
+from app.models.organization_membership import OrganizationMembership
 from app.models.project import Project
 from app.models.dataset import Dataset
 from app.models.analysis import Analysis
 from app.models.user_settings import UserSettings
 
-__all__ = ["Base", "Project", "Dataset", "Analysis", "UserSettings", "async_session_maker", "engine"]
+__all__ = [
+    "Base",
+    "Permission",
+    "Role",
+    "User",
+    "Organization",
+    "OrganizationMembership",
+    "Project",
+    "Dataset",
+    "Analysis",
+    "UserSettings",
+    "async_session_maker",
+    "engine",
+]

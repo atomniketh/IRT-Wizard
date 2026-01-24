@@ -14,6 +14,9 @@ export interface Project {
   name: string
   description: string | null
   competency_level: CompetencyLevel
+  visibility: string
+  owner_user_id: string | null
+  owner_organization_id: string | null
   created_at: string
   updated_at: string
 }

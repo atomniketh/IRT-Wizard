@@ -9,10 +9,11 @@ import numpy as np
 import pandas as pd
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=4)
 
-from app.api.deps import DbSession, SettingsDep
+from app.api.deps import DbSession, SettingsDep, CurrentUser
 from app.core.irt_engine import fit_model, ModelType as IRTModelType
 from app.core.polytomous_engine import (
     fit_polytomous_model,
@@ -26,7 +27,9 @@ from app.core.polytomous_engine import (
 )
 from app.models.analysis import Analysis
 from app.models.dataset import Dataset
+from app.models.project import Project
 from app.schemas.analysis import AnalysisCreate, AnalysisRead, AnalysisStatus
+from app.services.permissions import PermissionServiceDep
 from app.schemas.irt import (
     ICCCurve,
     ItemInformationFunction,
@@ -41,6 +44,25 @@ from app.schemas.irt import (
 )
 
 router = APIRouter()
+
+
+async def _get_analysis_with_access(
+    analysis_id: uuid.UUID,
+    db: DbSession,
+    permissions: PermissionServiceDep,
+    permission_code: str = "analysis:read",
+) -> Analysis:
+    result = await db.execute(
+        select(Analysis)
+        .options(selectinload(Analysis.project))
+        .where(Analysis.id == analysis_id)
+    )
+    analysis = result.scalar_one_or_none()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    await permissions.require_project_access(analysis.project, permission_code)
+    return analysis
 
 
 def run_analysis_task(
@@ -86,6 +108,9 @@ def run_analysis_task(
 
         if not analysis or not dataset:
             return
+
+        project = session.get(Project, analysis.project_id)
+        project_name = project.name if project else "IRT-Analyses"
 
         analysis.status = "running"
         analysis.started_at = datetime.utcnow()
@@ -172,17 +197,18 @@ def run_analysis_task(
             log_to_db(session, analysis, f"Response matrix: {data.shape[0]} persons × {data.shape[1]} items", "info")
             log_to_db(session, analysis, "Setting up MLflow experiment tracking...", "step")
 
-            experiment = mlflow.get_experiment_by_name("IRT-Analyses")
+            experiment = mlflow.get_experiment_by_name(project_name)
             if experiment is None:
                 mlflow.create_experiment(
-                    "IRT-Analyses",
+                    project_name,
                     tags={
-                        "mlflow.note.content": "Item Response Theory model fitting experiments. Tracks 1PL, 2PL, 3PL, RSM, and PCM model runs with item parameters, fit statistics, and standard errors."
+                        "mlflow.note.content": f"IRT analyses for project: {project_name}. Tracks 1PL, 2PL, 3PL, RSM, and PCM model runs."
                     }
                 )
-            mlflow.set_experiment("IRT-Analyses")
+            mlflow.set_experiment(project_name)
             with mlflow.start_run(run_name=f"{model_type}_{analysis_id}") as run:
                 mlflow.set_tag("mlflow.note.content", f"{model_type} IRT model analysis on {dataset.original_filename or dataset.name}")
+                mlflow.log_param("project_name", project_name)
                 mlflow.log_param("model_type", model_type)
                 mlflow.log_param("dataset_id", str(dataset_id))
                 mlflow.log_param("dataset_name", dataset.original_filename or dataset.name)
@@ -380,11 +406,19 @@ async def create_analysis(
     analysis_in: AnalysisCreate,
     db: DbSession,
     settings: SettingsDep,
+    current_user: CurrentUser,
+    permissions: PermissionServiceDep,
 ) -> Analysis:
-    result = await db.execute(select(Dataset).where(Dataset.id == analysis_in.dataset_id))
+    result = await db.execute(
+        select(Dataset)
+        .options(selectinload(Dataset.project))
+        .where(Dataset.id == analysis_in.dataset_id)
+    )
     dataset = result.scalar_one_or_none()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
+
+    await permissions.require_project_access(dataset.project, "analysis:create")
 
     if dataset.validation_status != "valid":
         raise HTTPException(status_code=400, detail="Dataset is not valid for analysis")
@@ -425,20 +459,23 @@ async def create_analysis(
 
 
 @router.get("/{analysis_id}", response_model=AnalysisRead)
-async def get_analysis(analysis_id: uuid.UUID, db: DbSession) -> Analysis:
-    result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
-    analysis = result.scalar_one_or_none()
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
-    return analysis
+async def get_analysis(
+    analysis_id: uuid.UUID,
+    db: DbSession,
+    current_user: CurrentUser,
+    permissions: PermissionServiceDep,
+) -> Analysis:
+    return await _get_analysis_with_access(analysis_id, db, permissions, "analysis:read")
 
 
 @router.get("/{analysis_id}/status", response_model=AnalysisStatus)
-async def get_analysis_status(analysis_id: uuid.UUID, db: DbSession) -> dict[str, Any]:
-    result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
-    analysis = result.scalar_one_or_none()
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
+async def get_analysis_status(
+    analysis_id: uuid.UUID,
+    db: DbSession,
+    current_user: CurrentUser,
+    permissions: PermissionServiceDep,
+) -> dict[str, Any]:
+    analysis = await _get_analysis_with_access(analysis_id, db, permissions, "analysis:read")
 
     return {
         "id": analysis.id,
@@ -452,13 +489,12 @@ async def get_analysis_status(analysis_id: uuid.UUID, db: DbSession) -> dict[str
 async def get_analysis_logs(
     analysis_id: uuid.UUID,
     db: DbSession,
+    current_user: CurrentUser,
+    permissions: PermissionServiceDep,
     since: int = 0,
 ) -> dict[str, Any]:
     """Get real-time logs for an analysis from the database."""
-    result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
-    analysis = result.scalar_one_or_none()
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
+    analysis = await _get_analysis_with_access(analysis_id, db, permissions, "analysis:read")
 
     all_logs = analysis.logs or []
     logs_since = all_logs[since:]
@@ -470,11 +506,13 @@ async def get_analysis_logs(
 
 
 @router.get("/{analysis_id}/item-parameters")
-async def get_item_parameters(analysis_id: uuid.UUID, db: DbSession) -> dict[str, Any]:
-    result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
-    analysis = result.scalar_one_or_none()
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
+async def get_item_parameters(
+    analysis_id: uuid.UUID,
+    db: DbSession,
+    current_user: CurrentUser,
+    permissions: PermissionServiceDep,
+) -> dict[str, Any]:
+    analysis = await _get_analysis_with_access(analysis_id, db, permissions, "analysis:read")
 
     if analysis.status != "completed":
         raise HTTPException(status_code=400, detail="Analysis not completed")
@@ -483,11 +521,13 @@ async def get_item_parameters(analysis_id: uuid.UUID, db: DbSession) -> dict[str
 
 
 @router.get("/{analysis_id}/abilities")
-async def get_ability_estimates(analysis_id: uuid.UUID, db: DbSession) -> dict[str, Any]:
-    result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
-    analysis = result.scalar_one_or_none()
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
+async def get_ability_estimates(
+    analysis_id: uuid.UUID,
+    db: DbSession,
+    current_user: CurrentUser,
+    permissions: PermissionServiceDep,
+) -> dict[str, Any]:
+    analysis = await _get_analysis_with_access(analysis_id, db, permissions, "analysis:read")
 
     if analysis.status != "completed":
         raise HTTPException(status_code=400, detail="Analysis not completed")
@@ -496,11 +536,13 @@ async def get_ability_estimates(analysis_id: uuid.UUID, db: DbSession) -> dict[s
 
 
 @router.get("/{analysis_id}/fit-statistics")
-async def get_fit_statistics(analysis_id: uuid.UUID, db: DbSession) -> dict[str, Any]:
-    result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
-    analysis = result.scalar_one_or_none()
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
+async def get_fit_statistics(
+    analysis_id: uuid.UUID,
+    db: DbSession,
+    current_user: CurrentUser,
+    permissions: PermissionServiceDep,
+) -> dict[str, Any]:
+    analysis = await _get_analysis_with_access(analysis_id, db, permissions, "analysis:read")
 
     if analysis.status != "completed":
         raise HTTPException(status_code=400, detail="Analysis not completed")
@@ -509,13 +551,15 @@ async def get_fit_statistics(analysis_id: uuid.UUID, db: DbSession) -> dict[str,
 
 
 @router.get("/{analysis_id}/icc-data", response_model=list[ICCCurve])
-async def get_icc_data(analysis_id: uuid.UUID, db: DbSession) -> list[dict[str, Any]]:
+async def get_icc_data(
+    analysis_id: uuid.UUID,
+    db: DbSession,
+    current_user: CurrentUser,
+    permissions: PermissionServiceDep,
+) -> list[dict[str, Any]]:
     from app.core.irt_engine import compute_icc_data
 
-    result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
-    analysis = result.scalar_one_or_none()
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
+    analysis = await _get_analysis_with_access(analysis_id, db, permissions, "analysis:read")
 
     if analysis.status != "completed" or not analysis.item_parameters:
         raise HTTPException(status_code=400, detail="Analysis not completed")
@@ -524,13 +568,15 @@ async def get_icc_data(analysis_id: uuid.UUID, db: DbSession) -> list[dict[str, 
 
 
 @router.get("/{analysis_id}/information-functions")
-async def get_information_functions(analysis_id: uuid.UUID, db: DbSession) -> dict[str, Any]:
+async def get_information_functions(
+    analysis_id: uuid.UUID,
+    db: DbSession,
+    current_user: CurrentUser,
+    permissions: PermissionServiceDep,
+) -> dict[str, Any]:
     from app.core.irt_engine import compute_information_functions
 
-    result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
-    analysis = result.scalar_one_or_none()
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
+    analysis = await _get_analysis_with_access(analysis_id, db, permissions, "analysis:read")
 
     if analysis.status != "completed" or not analysis.item_parameters:
         raise HTTPException(status_code=400, detail="Analysis not completed")
@@ -542,6 +588,8 @@ async def get_information_functions(analysis_id: uuid.UUID, db: DbSession) -> di
 async def get_category_probability_curves(
     analysis_id: uuid.UUID,
     db: DbSession,
+    current_user: CurrentUser,
+    permissions: PermissionServiceDep,
     item: str | None = None,
 ) -> list[dict[str, Any]]:
     """
@@ -551,10 +599,7 @@ async def get_category_probability_curves(
         analysis_id: Analysis UUID
         item: Optional item name to filter curves for
     """
-    result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
-    analysis = result.scalar_one_or_none()
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
+    analysis = await _get_analysis_with_access(analysis_id, db, permissions, "analysis:read")
 
     if analysis.status != "completed" or not analysis.item_parameters:
         raise HTTPException(status_code=400, detail="Analysis not completed")
@@ -570,16 +615,18 @@ async def get_category_probability_curves(
 
 
 @router.get("/{analysis_id}/wright-map")
-async def get_wright_map(analysis_id: uuid.UUID, db: DbSession) -> dict[str, Any]:
+async def get_wright_map(
+    analysis_id: uuid.UUID,
+    db: DbSession,
+    current_user: CurrentUser,
+    permissions: PermissionServiceDep,
+) -> dict[str, Any]:
     """
     Get Wright map data for polytomous models (RSM/PCM).
 
     Returns person distribution and item difficulty locations for visualization.
     """
-    result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
-    analysis = result.scalar_one_or_none()
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
+    analysis = await _get_analysis_with_access(analysis_id, db, permissions, "analysis:read")
 
     if analysis.status != "completed" or not analysis.item_parameters:
         raise HTTPException(status_code=400, detail="Analysis not completed")
@@ -599,16 +646,18 @@ async def get_wright_map(analysis_id: uuid.UUID, db: DbSession) -> dict[str, Any
 
 
 @router.get("/{analysis_id}/item-fit-statistics")
-async def get_item_fit_statistics(analysis_id: uuid.UUID, db: DbSession) -> list[dict[str, Any]]:
+async def get_item_fit_statistics(
+    analysis_id: uuid.UUID,
+    db: DbSession,
+    current_user: CurrentUser,
+    permissions: PermissionServiceDep,
+) -> list[dict[str, Any]]:
     """
     Get MNSQ fit statistics for each item in polytomous models (RSM/PCM).
 
     Returns infit and outfit MNSQ values for model fit assessment.
     """
-    result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
-    analysis = result.scalar_one_or_none()
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
+    analysis = await _get_analysis_with_access(analysis_id, db, permissions, "analysis:read")
 
     if analysis.status != "completed" or not analysis.item_parameters:
         raise HTTPException(status_code=400, detail="Analysis not completed")
@@ -644,16 +693,18 @@ async def get_item_fit_statistics(analysis_id: uuid.UUID, db: DbSession) -> list
 # Phase 2: Additional Rasch Analyses endpoints
 
 @router.get("/{analysis_id}/reliability")
-async def get_reliability_statistics(analysis_id: uuid.UUID, db: DbSession) -> dict[str, Any]:
+async def get_reliability_statistics(
+    analysis_id: uuid.UUID,
+    db: DbSession,
+    current_user: CurrentUser,
+    permissions: PermissionServiceDep,
+) -> dict[str, Any]:
     """
     Get reliability and separation statistics for polytomous models.
 
     Returns person/item reliability, separation indices, and strata.
     """
-    result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
-    analysis = result.scalar_one_or_none()
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
+    analysis = await _get_analysis_with_access(analysis_id, db, permissions, "analysis:read")
 
     if analysis.status != "completed" or not analysis.item_parameters:
         raise HTTPException(status_code=400, detail="Analysis not completed")
@@ -672,16 +723,18 @@ async def get_reliability_statistics(analysis_id: uuid.UUID, db: DbSession) -> d
 
 
 @router.get("/{analysis_id}/category-structure")
-async def get_category_structure(analysis_id: uuid.UUID, db: DbSession) -> dict[str, Any]:
+async def get_category_structure(
+    analysis_id: uuid.UUID,
+    db: DbSession,
+    current_user: CurrentUser,
+    permissions: PermissionServiceDep,
+) -> dict[str, Any]:
     """
     Get category structure analysis for polytomous models.
 
     Returns category statistics, thresholds, and recommendations for category functioning.
     """
-    result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
-    analysis = result.scalar_one_or_none()
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
+    analysis = await _get_analysis_with_access(analysis_id, db, permissions, "analysis:read")
 
     if analysis.status != "completed" or not analysis.item_parameters:
         raise HTTPException(status_code=400, detail="Analysis not completed")
@@ -773,6 +826,8 @@ async def get_category_structure(analysis_id: uuid.UUID, db: DbSession) -> dict[
 async def get_pcar_analysis(
     analysis_id: uuid.UUID,
     db: DbSession,
+    current_user: CurrentUser,
+    permissions: PermissionServiceDep,
     n_components: int = 5,
 ) -> dict[str, Any]:
     """
@@ -784,10 +839,7 @@ async def get_pcar_analysis(
     Note: This endpoint requires access to raw response data, which may not be
     available for all analyses. Returns placeholder values if raw data is unavailable.
     """
-    result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
-    analysis = result.scalar_one_or_none()
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
+    analysis = await _get_analysis_with_access(analysis_id, db, permissions, "analysis:read")
 
     if analysis.status != "completed" or not analysis.item_parameters:
         raise HTTPException(status_code=400, detail="Analysis not completed")
@@ -839,6 +891,8 @@ async def get_dif_analysis(
     analysis_id: uuid.UUID,
     db: DbSession,
     settings: SettingsDep,
+    current_user: CurrentUser,
+    permissions: PermissionServiceDep,
     group_column: str | None = None,
 ) -> dict[str, Any]:
     """
@@ -852,10 +906,7 @@ async def get_dif_analysis(
     """
     from app.services.storage import StorageService
 
-    result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
-    analysis = result.scalar_one_or_none()
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
+    analysis = await _get_analysis_with_access(analysis_id, db, permissions, "analysis:read")
 
     if analysis.status != "completed" or not analysis.item_parameters:
         raise HTTPException(status_code=400, detail="Analysis not completed")
@@ -1014,11 +1065,13 @@ async def get_dif_analysis(
 
 
 @router.delete("/{analysis_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_analysis(analysis_id: uuid.UUID, db: DbSession) -> None:
-    result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
-    analysis = result.scalar_one_or_none()
-    if not analysis:
-        raise HTTPException(status_code=404, detail="Analysis not found")
+async def delete_analysis(
+    analysis_id: uuid.UUID,
+    db: DbSession,
+    current_user: CurrentUser,
+    permissions: PermissionServiceDep,
+) -> None:
+    analysis = await _get_analysis_with_access(analysis_id, db, permissions, "analysis:delete")
 
     await db.delete(analysis)
     await db.commit()
