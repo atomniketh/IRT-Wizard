@@ -13,6 +13,7 @@ import {
 import { analysisApi } from '@/api/analysis'
 import { Tooltip as HelpTooltip } from '../common/Tooltip'
 import { useCompetencyLevel } from '@/hooks/useCompetencyLevel'
+import { WrightMapPersonTooltip } from './ChartTooltips'
 import type { WrightMapData } from '@/types'
 
 interface WrightMapProps {
@@ -119,13 +120,7 @@ export function WrightMap({ analysisId }: WrightMapProps) {
                   position: 'insideLeft',
                 }}
               />
-              <Tooltip
-                formatter={(value: number) => [value, 'Count']}
-                labelFormatter={(label) => `θ = ${Number(label).toFixed(2)}`}
-                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                labelStyle={{ color: '#111827', fontWeight: 600 }}
-                itemStyle={{ color: '#374151' }}
-              />
+              <Tooltip content={(props) => <WrightMapPersonTooltip {...props} isStudent={isStudent} />} />
               <ReferenceLine y={personMean} stroke="#3b82f6" strokeDasharray="5 5" />
               <Bar dataKey="count" fill="#3b82f6" barSize={8}>
                 {data.persons.map((_, index) => (

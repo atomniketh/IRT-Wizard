@@ -12,6 +12,7 @@ import {
 import { analysisApi } from '@/api/analysis'
 import { Tooltip as HelpTooltip } from '../common/Tooltip'
 import { useCompetencyLevel } from '@/hooks/useCompetencyLevel'
+import { IIFTooltip } from './ChartTooltips'
 import type { InformationFunctions } from '@/types'
 
 interface IIFChartProps {
@@ -127,13 +128,7 @@ export function IIFChart({ analysisId, selectedItems }: IIFChartProps) {
               tickFormatter={(value) => value.toFixed(2)}
               stroke="#6b7280"
             />
-            <Tooltip
-              formatter={(value: number) => value.toFixed(3)}
-              labelFormatter={(label) => `θ = ${Number(label).toFixed(2)}`}
-              contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-              labelStyle={{ color: '#111827', fontWeight: 600 }}
-              itemStyle={{ color: '#374151' }}
-            />
+            <Tooltip content={(props) => <IIFTooltip {...props} isStudent={isStudent} />} />
             <Legend verticalAlign="bottom" wrapperStyle={{ paddingTop: 20 }} />
             {filteredItems.map((item, index) => (
               <Line

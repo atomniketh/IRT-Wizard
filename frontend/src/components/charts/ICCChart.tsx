@@ -12,6 +12,7 @@ import {
 import { analysisApi } from '@/api/analysis'
 import { Tooltip as HelpTooltip } from '../common/Tooltip'
 import { useCompetencyLevel } from '@/hooks/useCompetencyLevel'
+import { ICCTooltip } from './ChartTooltips'
 import type { ICCCurve } from '@/types'
 
 interface ICCChartProps {
@@ -126,13 +127,7 @@ export function ICCChart({ analysisId, selectedItems }: ICCChartProps) {
               tickFormatter={(value) => value.toFixed(1)}
               stroke="#6b7280"
             />
-            <Tooltip
-              formatter={(value: number) => value.toFixed(3)}
-              labelFormatter={(label) => `θ = ${Number(label).toFixed(2)}`}
-              contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-              labelStyle={{ color: '#111827', fontWeight: 600 }}
-              itemStyle={{ color: '#374151' }}
-            />
+            <Tooltip content={(props) => <ICCTooltip {...props} isStudent={isStudent} />} />
             <Legend verticalAlign="bottom" wrapperStyle={{ paddingTop: 20 }} />
             {filteredData.map((curve, index) => (
               <Line

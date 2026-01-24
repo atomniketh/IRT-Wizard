@@ -11,6 +11,7 @@ import {
 import { analysisApi } from '@/api/analysis'
 import { Tooltip as HelpTooltip } from '../common/Tooltip'
 import { useCompetencyLevel } from '@/hooks/useCompetencyLevel'
+import { TIFTooltip } from './ChartTooltips'
 import type { InformationFunctions } from '@/types'
 
 interface TIFChartProps {
@@ -100,16 +101,7 @@ export function TIFChart({ analysisId }: TIFChartProps) {
               tickFormatter={(value) => value.toFixed(1)}
               stroke="#6b7280"
             />
-            <Tooltip
-              formatter={(value: number, name: string) => [
-                value.toFixed(3),
-                name === 'information' ? 'Information' : 'SE(θ)',
-              ]}
-              labelFormatter={(label) => `θ = ${Number(label).toFixed(2)}`}
-              contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-              labelStyle={{ color: '#111827', fontWeight: 600 }}
-              itemStyle={{ color: '#374151' }}
-            />
+            <Tooltip content={(props) => <TIFTooltip {...props} isStudent={isStudent} />} />
             <Area
               type="monotone"
               dataKey="information"

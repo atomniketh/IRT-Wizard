@@ -11,6 +11,7 @@ import {
 import { analysisApi } from '@/api/analysis'
 import { Tooltip as HelpTooltip } from '../common/Tooltip'
 import { useCompetencyLevel } from '@/hooks/useCompetencyLevel'
+import { AbilityDistributionTooltip } from './ChartTooltips'
 import type { AbilityEstimate } from '@/types'
 
 interface AbilityDistributionProps {
@@ -135,16 +136,7 @@ export function AbilityDistribution({ analysisId, estimates: propEstimates }: Ab
               }}
               stroke="#6b7280"
             />
-            <Tooltip
-              formatter={(value: number, name: string) => [
-                name === 'count' ? value : `${value}%`,
-                name === 'count' ? (isStudent ? 'Students' : 'Persons') : 'Percentage',
-              ]}
-              labelFormatter={(label) => `θ = ${Number(label).toFixed(2)}`}
-              contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-              labelStyle={{ color: '#111827', fontWeight: 600 }}
-              itemStyle={{ color: '#374151' }}
-            />
+            <Tooltip content={(props) => <AbilityDistributionTooltip {...props} isStudent={isStudent} />} />
             <Bar dataKey="count" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
