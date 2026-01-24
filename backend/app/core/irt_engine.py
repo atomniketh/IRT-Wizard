@@ -3,6 +3,121 @@ from enum import Enum
 from typing import Any
 
 import numpy as np
+from scipy.optimize import fminbound, fmin_slsqp
+from scipy.special import expit
+from scipy import integrate
+
+
+def _mml_abstract_fixed(difficulty, scalar, discrimination, theta, distribution):
+    """Fixed version of girth's _mml_abstract for numpy 2.x compatibility."""
+    for item_ndx in range(difficulty.shape[0]):
+        if hasattr(scalar[item_ndx], 'flat'):
+            scalar_val = float(scalar[item_ndx].flat[0])
+        elif hasattr(scalar[item_ndx], 'item'):
+            scalar_val = float(scalar[item_ndx].item())
+        else:
+            scalar_val = float(scalar[item_ndx])
+
+        disc_val = discrimination[item_ndx]
+        if hasattr(disc_val, 'flat'):
+            disc_val = float(disc_val.flat[0])
+        elif hasattr(disc_val, 'item'):
+            disc_val = float(disc_val.item())
+        else:
+            disc_val = float(disc_val)
+
+        def min_zero_local(estimate, disc=disc_val, sv=scalar_val):
+            temp = disc * (theta - estimate)
+            kernel = expit(temp)
+            integral = kernel.dot(distribution)
+            return float(np.square(integral - sv))
+
+        difficulty[item_ndx] = fminbound(min_zero_local, -6, 6, xtol=1e-4)
+
+    return difficulty
+
+
+def threepl_mml_fixed(dataset, options=None):
+    """
+    Fixed 3PL MML estimation compatible with numpy 2.x.
+
+    This is a patched version of girth's threepl_mml that fixes the
+    scalar indexing issue in _mml_abstract.
+    """
+    from girth.utilities import (validate_estimation_options,
+        get_true_false_counts, convert_responses_to_kernel_sign)
+    from girth.utilities.utils import _get_quadrature_points
+    from girth.unidimensional.dichotomous.partial_integrals import _compute_partial_integral_3pl
+
+    options = validate_estimation_options(options)
+    quad_start, quad_stop = options['quadrature_bounds']
+    quad_n = options['quadrature_n']
+
+    n_items = dataset.shape[0]
+    n_no, n_yes = get_true_false_counts(dataset)
+    scalar = n_yes / (n_yes + n_no)
+
+    unique_sets, counts = np.unique(dataset, axis=1, return_counts=True)
+    the_sign = convert_responses_to_kernel_sign(unique_sets)
+
+    theta, weights = _get_quadrature_points(quad_n, quad_start, quad_stop)
+    distribution = options['distribution'](theta)
+    distribution_x_weights = distribution * weights
+
+    discrimination = np.ones((n_items,))
+    difficulty = np.zeros((n_items,))
+    guessing = np.zeros((n_items,))
+
+    local_scalar = np.zeros((1, 1))
+
+    for iteration in range(options['max_iteration']):
+        previous_discrimination = discrimination.copy()
+
+        partial_int = _compute_partial_integral_3pl(theta, difficulty,
+                                                    discrimination, guessing, the_sign)
+        partial_int *= distribution
+
+        for ndx in range(n_items):
+            local_int = _compute_partial_integral_3pl(theta, difficulty[ndx, None],
+                                                      discrimination[ndx, None],
+                                                      guessing[ndx, None],
+                                                      the_sign[ndx, None])
+            partial_int /= local_int
+
+            def min_func_local(estimate):
+                discrimination[ndx] = estimate[0]
+                guessing[ndx] = estimate[1]
+
+                local_scalar[0, 0] = (scalar[ndx] - guessing[ndx]) / (1. - guessing[ndx])
+                _mml_abstract_fixed(difficulty[ndx, None], local_scalar,
+                                    discrimination[ndx, None], theta, distribution_x_weights)
+                estimate_int = _compute_partial_integral_3pl(theta, difficulty[ndx, None],
+                                                             discrimination[ndx, None],
+                                                             guessing[ndx, None],
+                                                             the_sign[ndx, None])
+
+                estimate_int *= partial_int
+                otpt = integrate.fixed_quad(
+                    lambda x: estimate_int, quad_start, quad_stop, n=quad_n)[0]
+
+                return -np.log(otpt).dot(counts)
+
+            initial_guess = [discrimination[ndx], guessing[ndx]]
+            fmin_slsqp(min_func_local, initial_guess,
+                       bounds=([0.25, 4], [0, .33]), iprint=False)
+
+            estimate_int = _compute_partial_integral_3pl(theta, difficulty[ndx, None],
+                                                         discrimination[ndx, None],
+                                                         guessing[ndx, None],
+                                                         the_sign[ndx, None])
+            partial_int *= estimate_int
+
+        if np.abs(discrimination - previous_discrimination).max() < 1e-3:
+            break
+
+    return {'Discrimination': discrimination,
+            'Difficulty': difficulty,
+            'Guessing': guessing}
 
 
 class ModelType(str, Enum):
@@ -91,7 +206,7 @@ def fit_model(
         except Exception:
             pass
     elif model_type == ModelType.THREE_PL:
-        estimates = girth.threepl_mml(data_for_girth)
+        estimates = threepl_mml_fixed(data_for_girth)
         difficulty = estimates["Difficulty"]
         discrimination = estimates["Discrimination"]
         guessing = estimates.get("Guessing", np.zeros(n_items))

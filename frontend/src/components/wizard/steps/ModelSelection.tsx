@@ -35,8 +35,6 @@ const dichotomousModelOptions: ModelOption[] = [
     type: '3PL',
     name: 'Three-Parameter',
     shortDesc: 'Adds guessing parameter',
-    disabled: true,
-    disabledReason: 'Coming soon - requires library update',
     category: 'dichotomous',
   },
 ]
