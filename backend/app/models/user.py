@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models import Base
 
 if TYPE_CHECKING:
+    from app.models.experiment import Experiment
     from app.models.organization_membership import OrganizationMembership
     from app.models.project import Project
 
@@ -43,4 +44,9 @@ class User(Base):
     sent_invitations: Mapped[list["OrganizationMembership"]] = relationship(
         "OrganizationMembership",
         foreign_keys="OrganizationMembership.invited_by_id",
+    )
+    experiments: Mapped[list["Experiment"]] = relationship(
+        "Experiment",
+        back_populates="owner_user",
+        foreign_keys="Experiment.owner_user_id",
     )

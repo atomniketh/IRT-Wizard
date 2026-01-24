@@ -9,6 +9,7 @@ import { OrganizationSwitcher } from './components/common/OrganizationSwitcher'
 import { LoginPage, AuthCallback, ProtectedRoute } from './components/auth'
 import { OrgSettings } from './pages/OrgSettings'
 import { OrgMembers } from './pages/OrgMembers'
+import CreateOrganization from './pages/CreateOrganization'
 import { useSettingsStore } from './store'
 import { useAuthStore } from './store/authStore'
 import { clsx } from 'clsx'
@@ -156,6 +157,16 @@ function App() {
           <ProtectedRoute>
             <AppLayout>
               <About />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/org/new"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <CreateOrganization />
             </AppLayout>
           </ProtectedRoute>
         }

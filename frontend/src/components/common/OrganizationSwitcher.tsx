@@ -91,6 +91,19 @@ export function OrganizationSwitcher() {
               )}
             </button>
 
+            <button
+              onClick={() => {
+                setIsOpen(false)
+                navigate('/org/new')
+              }}
+              className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
+            >
+              <span className="w-6 h-6 rounded border-2 border-dashed border-gray-300 dark:border-gray-500 flex items-center justify-center text-xs text-gray-400">
+                +
+              </span>
+              <span>Create Organization</span>
+            </button>
+
             {organizations.map((org) => (
               <button
                 key={org.id}

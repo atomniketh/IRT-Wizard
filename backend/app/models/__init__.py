@@ -20,6 +20,7 @@ from app.models.organization_membership import OrganizationMembership
 from app.models.project import Project
 from app.models.dataset import Dataset
 from app.models.analysis import Analysis
+from app.models.experiment import Experiment
 from app.models.user_settings import UserSettings
 
 __all__ = [
@@ -32,6 +33,7 @@ __all__ = [
     "Project",
     "Dataset",
     "Analysis",
+    "Experiment",
     "UserSettings",
     "async_session_maker",
     "engine",

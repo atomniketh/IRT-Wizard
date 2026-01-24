@@ -16,6 +16,13 @@ from app.schemas.organization import (
     RoleUpdate,
     PermissionResponse,
 )
+from app.schemas.experiment import (
+    ExperimentCreate,
+    ExperimentUpdate,
+    ExperimentResponse,
+    ExperimentListItem,
+    ExperimentWithMLflow,
+)
 
 __all__ = [
     "ProjectCreate",
@@ -46,4 +53,9 @@ __all__ = [
     "RoleResponse",
     "RoleUpdate",
     "PermissionResponse",
+    "ExperimentCreate",
+    "ExperimentUpdate",
+    "ExperimentResponse",
+    "ExperimentListItem",
+    "ExperimentWithMLflow",
 ]

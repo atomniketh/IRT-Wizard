@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { User, OrganizationListItem } from '@/types/auth'
+import { organizationsApi } from '@/api/organizations'
 
 interface AuthState {
   user: User | null
@@ -18,6 +19,7 @@ interface AuthState {
   login: (user: User, token: string) => void
   logout: () => void
   getAuthHeader: () => Record<string, string>
+  fetchOrganizations: () => Promise<void>
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -67,6 +69,15 @@ export const useAuthStore = create<AuthState>()(
         }
 
         return headers
+      },
+
+      fetchOrganizations: async () => {
+        try {
+          const orgs = await organizationsApi.list()
+          set({ organizations: orgs })
+        } catch {
+          set({ organizations: [] })
+        }
       },
     }),
     {
