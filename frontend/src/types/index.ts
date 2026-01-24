@@ -195,11 +195,18 @@ export interface DIFResult {
   dif_classification: 'A' | 'B' | 'C'
 }
 
+export interface GroupingColumnInfo {
+  column: string
+  values: (string | number)[]
+  n_groups: number
+}
+
 export interface DIFAnalysisResult {
   results: DIFResult[]
   group_column: string | null
   focal_group: string | null
   reference_group: string | null
+  available_grouping_columns?: GroupingColumnInfo[]
   note?: string
 }
 

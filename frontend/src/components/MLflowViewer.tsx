@@ -299,12 +299,39 @@ function ComparisonView({
   const [highlightBest, setHighlightBest] = useState(true)
 
   const getBestValue = (metricKey: string): number | null => {
-    const values = comparison.runs.map(r => r.metrics[metricKey]).filter(v => v != null)
+    const values = comparison.runs.map(r => r.metrics[metricKey]).filter(v => v != null) as number[]
     if (values.length === 0) return null
-    if (['aic', 'bic'].includes(metricKey)) {
+
+    const lowerIsBetter = ['aic', 'bic', 'mean_se_difficulty', 'mean_se_discrimination']
+    const higherIsBetter = ['person_reliability', 'item_reliability', 'log_likelihood', 'converged']
+    const closerToOneIsBetter = ['mean_infit_mnsq', 'mean_outfit_mnsq']
+    const notComparable = [
+      'n_categories', 'n_parameters', 'n_items', 'n_persons',
+      'mean_difficulty', 'mean_discrimination'
+    ]
+
+    if (notComparable.includes(metricKey)) {
+      return null
+    }
+    if (lowerIsBetter.includes(metricKey)) {
       return Math.min(...values)
     }
-    return Math.max(...values)
+    if (higherIsBetter.includes(metricKey)) {
+      return Math.max(...values)
+    }
+    if (closerToOneIsBetter.includes(metricKey)) {
+      let closest = values[0]
+      let minDiff = Math.abs(values[0] - 1.0)
+      for (const v of values) {
+        const diff = Math.abs(v - 1.0)
+        if (diff < minDiff) {
+          minDiff = diff
+          closest = v
+        }
+      }
+      return closest
+    }
+    return null
   }
 
   return (

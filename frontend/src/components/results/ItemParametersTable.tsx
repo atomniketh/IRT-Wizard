@@ -47,7 +47,8 @@ export function ItemParametersTable({ items, modelType }: ItemParametersTablePro
     return value.toFixed(decimals)
   }
 
-  const showDiscrimination = modelType !== '1PL'
+  const isPolytomous = modelType === 'RSM' || modelType === 'PCM'
+  const showDiscrimination = modelType !== '1PL' && !isPolytomous
   const showGuessing = modelType === '3PL'
 
   return (

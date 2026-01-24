@@ -838,18 +838,20 @@ async def get_pcar_analysis(
 async def get_dif_analysis(
     analysis_id: uuid.UUID,
     db: DbSession,
+    settings: SettingsDep,
     group_column: str | None = None,
 ) -> dict[str, Any]:
     """
     Get Differential Item Functioning (DIF) analysis.
 
     DIF analysis requires a grouping variable in the original dataset.
-    This endpoint returns placeholder data if no group variable is available.
 
     Args:
         analysis_id: Analysis UUID
         group_column: Name of the grouping column in the dataset
     """
+    from app.services.storage import StorageService
+
     result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
     analysis = result.scalar_one_or_none()
     if not analysis:
@@ -865,32 +867,150 @@ async def get_dif_analysis(
             detail="DIF analysis is only available for polytomous models (RSM/PCM)"
         )
 
+    dataset_result = await db.execute(select(Dataset).where(Dataset.id == analysis.dataset_id))
+    dataset = dataset_result.scalar_one_or_none()
+
+    available_grouping_columns = dataset.grouping_columns if dataset else None
+
+    if not available_grouping_columns:
+        items = analysis.item_parameters.get("items", [])
+        dif_results = []
+        for item in items:
+            dif_results.append({
+                "item_name": item["name"],
+                "focal_difficulty": item.get("difficulty", 0.0),
+                "reference_difficulty": item.get("difficulty", 0.0),
+                "dif_contrast": 0.0,
+                "dif_se": None,
+                "dif_t": None,
+                "dif_p": None,
+                "dif_classification": "A",
+            })
+        return {
+            "results": dif_results,
+            "group_column": None,
+            "focal_group": None,
+            "reference_group": None,
+            "available_grouping_columns": [],
+            "note": "No grouping columns detected in dataset. Upload data with demographic columns (e.g., sex, group, condition) for DIF analysis.",
+        }
+
+    if not group_column:
+        items = analysis.item_parameters.get("items", [])
+        dif_results = []
+        for item in items:
+            dif_results.append({
+                "item_name": item["name"],
+                "focal_difficulty": item.get("difficulty", 0.0),
+                "reference_difficulty": item.get("difficulty", 0.0),
+                "dif_contrast": 0.0,
+                "dif_se": None,
+                "dif_t": None,
+                "dif_p": None,
+                "dif_classification": "A",
+            })
+        return {
+            "results": dif_results,
+            "group_column": None,
+            "focal_group": None,
+            "reference_group": None,
+            "available_grouping_columns": available_grouping_columns,
+            "note": f"Select a grouping column to perform DIF analysis. Available: {', '.join([g['column'] for g in available_grouping_columns])}",
+        }
+
+    grouping_col_info = next((g for g in available_grouping_columns if g["column"] == group_column), None)
+    if not grouping_col_info:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Column '{group_column}' is not a valid grouping column. Available: {', '.join([g['column'] for g in available_grouping_columns])}"
+        )
+
+    if grouping_col_info["n_groups"] != 2:
+        raise HTTPException(
+            status_code=400,
+            detail=f"DIF analysis requires exactly 2 groups. Column '{group_column}' has {grouping_col_info['n_groups']} groups."
+        )
+
+    storage = StorageService(settings)
+    content = await storage.download_file(dataset.file_path)
+    separator = "\t" if dataset.original_filename and ".tsv" in dataset.original_filename else ","
+    df = pd.read_csv(io.BytesIO(content), sep=separator)
+
+    group_values = sorted(grouping_col_info["values"])
+    reference_group = group_values[0]
+    focal_group = group_values[1]
+
+    group_var = df[group_column].values
+
+    is_polytomous = analysis.model_type in ["RSM", "PCM"]
+    if is_polytomous:
+        ordinal_columns = []
+        for col in df.columns:
+            unique_vals = df[col].dropna().unique()
+            if len(unique_vals) >= 3:
+                try:
+                    sorted_vals = sorted([float(v) for v in unique_vals])
+                    if all(v == int(v) for v in sorted_vals):
+                        min_val, max_val = int(sorted_vals[0]), int(sorted_vals[-1])
+                        n_categories = max_val - min_val + 1
+                        if 3 <= n_categories <= 15:
+                            ordinal_columns.append(col)
+                except (ValueError, TypeError):
+                    pass
+        item_columns = ordinal_columns
+    else:
+        item_columns = [c for c in df.columns if set(df[c].dropna().unique()).issubset({0, 1, 0.0, 1.0})]
+
+    item_names = item_columns
+    response_data = df[item_columns].values.astype(float)
+
     items = analysis.item_parameters.get("items", [])
+    difficulty = np.array([item.get("difficulty", 0.0) for item in items])
+    thresholds_list = [item.get("thresholds", []) for item in items]
+    max_thresh = max(len(t) for t in thresholds_list) if thresholds_list else 0
+    thresholds = np.zeros((len(items), max_thresh))
+    for i, t in enumerate(thresholds_list):
+        if t:
+            thresholds[i, :len(t)] = t
 
-    # Note: Full DIF analysis requires group membership data from the original dataset
-    # which isn't stored with the analysis results.
-    # Return structure with placeholder values
+    theta = np.array(analysis.ability_estimates.get("thetas", [0.0] * len(df)))
 
-    dif_results = []
-    for item in items:
-        dif_results.append({
-            "item_name": item["name"],
-            "focal_difficulty": item.get("difficulty", 0.0),
-            "reference_difficulty": item.get("difficulty", 0.0),
-            "dif_contrast": 0.0,
-            "dif_se": None,
-            "dif_t": None,
-            "dif_p": None,
-            "dif_classification": "A",  # Negligible by default
-        })
+    try:
+        dif_results = compute_dif_analysis(
+            data=response_data,
+            group_variable=group_var,
+            difficulty=difficulty,
+            thresholds=thresholds,
+            theta=theta,
+            item_names=item_names,
+            model_type=model_type,
+            focal_group=focal_group,
+            reference_group=reference_group,
+        )
 
-    return {
-        "results": dif_results,
-        "group_column": group_column,
-        "focal_group": None,
-        "reference_group": None,
-        "note": "DIF analysis requires group membership data. Upload dataset with demographic column for full analysis.",
-    }
+        results_list = []
+        for r in dif_results:
+            results_list.append({
+                "item_name": r.item_name,
+                "focal_difficulty": r.focal_difficulty,
+                "reference_difficulty": r.reference_difficulty,
+                "dif_contrast": r.dif_contrast,
+                "dif_se": r.dif_se,
+                "dif_t": r.dif_t,
+                "dif_p": r.dif_p,
+                "dif_classification": r.dif_classification,
+            })
+
+        return {
+            "results": results_list,
+            "group_column": group_column,
+            "focal_group": str(focal_group),
+            "reference_group": str(reference_group),
+            "available_grouping_columns": available_grouping_columns,
+            "note": None,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"DIF computation failed: {str(e)}")
 
 
 @router.delete("/{analysis_id}", status_code=status.HTTP_204_NO_CONTENT)

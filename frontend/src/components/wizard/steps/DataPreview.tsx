@@ -61,6 +61,36 @@ const issueDetails: Record<string, IssueInfo> = {
     fix: 'High missing rates can bias parameter estimates. Consider using imputation techniques or collecting more complete data. Missing values will be treated as incorrect (0) during analysis.',
     severity: 'warning',
   },
+  grouping_columns_detected: {
+    title: 'Group Variables Available',
+    explanation: 'Demographic grouping columns were detected and can be used for Differential Item Functioning (DIF) analysis.',
+    fix: 'No action needed. You can use these columns for group comparisons after analysis.',
+    severity: 'info',
+  },
+  non_response_columns: {
+    title: 'Non-Response Columns Excluded',
+    explanation: 'Some columns do not appear to be response items and will be excluded from the IRT analysis.',
+    fix: 'No action needed. These columns will be ignored during parameter estimation.',
+    severity: 'info',
+  },
+  polytomous_data_detected: {
+    title: 'Polytomous Data Detected',
+    explanation: 'Your data contains ordinal responses with multiple categories (e.g., Likert scale).',
+    fix: 'No action needed. Use RSM or PCM models for polytomous data analysis.',
+    severity: 'info',
+  },
+  binary_data_detected: {
+    title: 'Binary Data Detected',
+    explanation: 'Your data contains binary (0/1) responses suitable for dichotomous IRT models.',
+    fix: 'No action needed. Use 1PL, 2PL, or 3PL models for binary data analysis.',
+    severity: 'info',
+  },
+  empty_rows_removed: {
+    title: 'Empty Rows Removed',
+    explanation: '', // Will use dynamic message from backend
+    fix: 'No action needed. The cleaned data will be used for analysis.',
+    severity: 'info',
+  },
 }
 
 function getIssueInfo(issue: ValidationError): IssueInfo {
@@ -221,7 +251,7 @@ export function DataPreview({ send, context }: DataPreviewProps) {
 
                     <p className={`text-sm mt-2 ${styles.text}`}>
                       <span className="font-medium">What this means: </span>
-                      {info.explanation}
+                      {info.explanation || err.message}
                     </p>
 
                     <p className={`text-sm mt-2 ${styles.text}`}>

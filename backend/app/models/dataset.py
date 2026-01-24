@@ -34,6 +34,8 @@ class Dataset(Base):
     min_response: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_response: Mapped[int | None] = mapped_column(Integer, nullable=True)
     n_categories: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Grouping columns for DIF analysis
+    grouping_columns: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

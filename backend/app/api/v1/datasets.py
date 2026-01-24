@@ -44,10 +44,22 @@ async def upload_dataset(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to parse file: {str(e)}")
 
+    original_row_count = len(df)
+    df = df.dropna(how='all')
+    dropped_rows = original_row_count - len(df)
+
     validation_result = validate_response_matrix(df)
 
+    if dropped_rows > 0:
+        validation_result["errors"] = validation_result.get("errors") or []
+        validation_result["errors"].append({
+            "type": "empty_rows_removed",
+            "message": f"{dropped_rows} empty row(s) were automatically removed from the dataset.",
+        })
+
+    cleaned_content = df.to_csv(index=False, sep=separator).encode('utf-8')
     storage = StorageService(settings)
-    file_path = await storage.upload_file(content, file.filename, str(project_id))
+    file_path = await storage.upload_file(cleaned_content, file.filename, str(project_id))
 
     item_names = list(df.columns)
     data_summary = {
@@ -72,6 +84,7 @@ async def upload_dataset(
         min_response=validation_result.get("min_response"),
         max_response=validation_result.get("max_response"),
         n_categories=validation_result.get("n_categories"),
+        grouping_columns=validation_result.get("grouping_columns"),
     )
     db.add(dataset)
     await db.commit()
@@ -107,10 +120,22 @@ async def fetch_dataset_from_url(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to parse file: {str(e)}")
 
+    original_row_count = len(df)
+    df = df.dropna(how='all')
+    dropped_rows = original_row_count - len(df)
+
     validation_result = validate_response_matrix(df)
 
+    if dropped_rows > 0:
+        validation_result["errors"] = validation_result.get("errors") or []
+        validation_result["errors"].append({
+            "type": "empty_rows_removed",
+            "message": f"{dropped_rows} empty row(s) were automatically removed from the dataset.",
+        })
+
+    cleaned_content = df.to_csv(index=False, sep=separator).encode('utf-8')
     storage = StorageService(settings)
-    file_path = await storage.upload_file(content, filename, str(project_id))
+    file_path = await storage.upload_file(cleaned_content, filename, str(project_id))
 
     item_names = list(df.columns)
     data_summary = {
@@ -135,6 +160,7 @@ async def fetch_dataset_from_url(
         min_response=validation_result.get("min_response"),
         max_response=validation_result.get("max_response"),
         n_categories=validation_result.get("n_categories"),
+        grouping_columns=validation_result.get("grouping_columns"),
     )
     db.add(dataset)
     await db.commit()

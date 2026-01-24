@@ -30,6 +30,8 @@ class DatasetRead(DatasetBase):
     min_response: int | None = None
     max_response: int | None = None
     n_categories: int | None = None
+    # Grouping columns for DIF analysis
+    grouping_columns: list[dict[str, Any]] | None = None
     created_at: datetime
 
     class Config:
@@ -58,6 +60,8 @@ class DatasetUploadResponse(BaseModel):
     min_response: int | None = None
     max_response: int | None = None
     n_categories: int | None = None
+    # Grouping columns for DIF analysis
+    grouping_columns: list[dict[str, Any]] | None = None
 
     class Config:
         from_attributes = True

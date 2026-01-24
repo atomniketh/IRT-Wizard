@@ -1,29 +1,32 @@
 import { useState, useEffect } from 'react'
 import { ArrowUpDown, AlertTriangle, Info } from 'lucide-react'
 import { useCompetencyLevel } from '@/hooks/useCompetencyLevel'
-
-interface DIFResult {
-  item_name: string
-  group_variable: string
-  reference_difficulty: number
-  focal_difficulty: number
-  dif_contrast: number
-  dif_se: number | null
-  t_statistic: number | null
-  p_value: number | null
-  dif_classification: 'negligible' | 'slight' | 'moderate' | 'large'
-}
+import { analysisApi } from '@/api/analysis'
+import type { DIFResult, GroupingColumnInfo } from '@/types'
 
 interface DIFAnalysisTableProps {
   analysisId: string
-  groupVariable?: string
 }
 
 type SortField = 'item_name' | 'dif_contrast' | 'dif_classification'
 type SortDirection = 'asc' | 'desc'
 
-function getDIFColor(classification: string): string {
+function classificationToLabel(classification: string): string {
   switch (classification) {
+    case 'A':
+      return 'negligible'
+    case 'B':
+      return 'slight'
+    case 'C':
+      return 'large'
+    default:
+      return classification.toLowerCase()
+  }
+}
+
+function getDIFColor(classification: string): string {
+  const label = classificationToLabel(classification)
+  switch (label) {
     case 'large':
       return 'text-red-600 dark:text-red-400'
     case 'moderate':
@@ -36,7 +39,8 @@ function getDIFColor(classification: string): string {
 }
 
 function getDIFBadgeClass(classification: string): string {
-  switch (classification) {
+  const label = classificationToLabel(classification)
+  switch (label) {
     case 'large':
       return 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
     case 'moderate':
@@ -48,14 +52,15 @@ function getDIFBadgeClass(classification: string): string {
   }
 }
 
-export function DIFAnalysisTable({ analysisId, groupVariable = 'group' }: DIFAnalysisTableProps) {
+export function DIFAnalysisTable({ analysisId }: DIFAnalysisTableProps) {
   const [results, setResults] = useState<DIFResult[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [sortField, setSortField] = useState<SortField>('item_name')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
-  const [availableGroups] = useState<string[]>([])
-  const [selectedGroup, setSelectedGroup] = useState<string>(groupVariable)
+  const [availableGroupingColumns, setAvailableGroupingColumns] = useState<GroupingColumnInfo[]>([])
+  const [selectedGroupColumn, setSelectedGroupColumn] = useState<string | null>(null)
+  const [focalGroup, setFocalGroup] = useState<string | null>(null)
+  const [referenceGroup, setReferenceGroup] = useState<string | null>(null)
 
   const { isStudent, isResearcher } = useCompetencyLevel()
 
@@ -63,22 +68,21 @@ export function DIFAnalysisTable({ analysisId, groupVariable = 'group' }: DIFAna
     const fetchData = async () => {
       try {
         setIsLoading(true)
-        // DIF analysis requires group variable in data
-        // For now, show placeholder until DIF endpoint is available
-        // In production, this would call: analysisApi.getDIF(analysisId, selectedGroup)
-
-        // Placeholder: DIF analysis not available message
-        setError('DIF analysis requires demographic grouping variables in your dataset. Upload data with group columns (e.g., gender, age_group) to enable this analysis.')
-        setResults([])
+        const data = await analysisApi.getDIF(analysisId, selectedGroupColumn || undefined)
+        setResults(data.results)
+        setAvailableGroupingColumns(data.available_grouping_columns || [])
+        setFocalGroup(data.focal_group)
+        setReferenceGroup(data.reference_group)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load DIF analysis')
+        console.error('Failed to load DIF analysis:', err)
+        setResults([])
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchData()
-  }, [analysisId, selectedGroup])
+  }, [analysisId, selectedGroupColumn])
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -115,8 +119,11 @@ export function DIFAnalysisTable({ analysisId, groupVariable = 'group' }: DIFAna
     )
   }
 
-  // Show info message when DIF not available
-  if (error || results.length === 0) {
+  const hasGroupingColumns = availableGroupingColumns.length > 0
+  const hasSelectedGroup = selectedGroupColumn !== null
+  const hasResults = results.length > 0 && results.some((r) => r.dif_contrast !== 0 || r.dif_se !== null)
+
+  if (!hasGroupingColumns) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -132,7 +139,7 @@ export function DIFAnalysisTable({ analysisId, groupVariable = 'group' }: DIFAna
             <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
             <div>
               <h4 className="font-medium text-blue-800 dark:text-blue-200">
-                {isStudent ? 'Group Comparison Not Available' : 'DIF Analysis Requires Group Data'}
+                {isStudent ? 'Group Comparison Not Available' : 'No Grouping Columns Detected'}
               </h4>
               <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
                 {isStudent
@@ -151,47 +158,100 @@ export function DIFAnalysisTable({ analysisId, groupVariable = 'group' }: DIFAna
           </div>
         </div>
 
-        {/* DIF explanation for educational purposes */}
-        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <h4 className="font-medium text-gray-900 dark:text-white mb-2">
-            {isStudent ? 'What is Fairness Analysis?' : 'About DIF Analysis'}
+        <DIFExplanation isStudent={isStudent} isResearcher={isResearcher} />
+      </div>
+    )
+  }
+
+  if (!hasSelectedGroup) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <h3 className="font-semibold text-gray-900 dark:text-white">
+              {isStudent ? 'Fairness Analysis' : 'Differential Item Functioning (DIF)'}
+            </h3>
+          </div>
+        </div>
+
+        <div className="p-6 bg-primary-50 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-800 rounded-lg">
+          <h4 className="font-medium text-primary-800 dark:text-primary-200 mb-3">
+            Select a Grouping Variable
           </h4>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-sm text-primary-700 dark:text-primary-300 mb-4">
             {isStudent
-              ? 'Fairness analysis checks if questions are equally fair to different groups. For example, it can detect if a question is harder for one gender compared to another, even when both groups have the same ability level.'
-              : 'Differential Item Functioning (DIF) occurs when respondents from different groups (e.g., male vs. female) with the same ability level have different probabilities of endorsing an item. DIF can indicate item bias or meaningful group differences.'}
+              ? 'Choose which group to compare:'
+              : 'Select a demographic variable to analyze differential item functioning:'}
           </p>
-          {isResearcher && (
-            <div className="mt-3 text-sm text-gray-600 dark:text-gray-400">
-              <p className="font-medium">DIF Classification Criteria:</p>
-              <ul className="list-disc list-inside mt-1 space-y-1">
-                <li>
-                  <span className="text-green-600 dark:text-green-400">Negligible:</span> |DIF contrast| &lt; 0.43
-                  logits
-                </li>
-                <li>
-                  <span className="text-yellow-600 dark:text-yellow-400">Slight:</span> 0.43 ≤ |DIF| &lt; 0.64 logits
-                </li>
-                <li>
-                  <span className="text-orange-600 dark:text-orange-400">Moderate:</span> 0.64 ≤ |DIF| &lt; 1.0 logits
-                </li>
-                <li>
-                  <span className="text-red-600 dark:text-red-400">Large:</span> |DIF contrast| ≥ 1.0 logits
-                </li>
+          <div className="flex flex-wrap gap-2">
+            {availableGroupingColumns
+              .filter((g) => g.n_groups === 2)
+              .map((group) => (
+                <button
+                  key={group.column}
+                  onClick={() => setSelectedGroupColumn(group.column)}
+                  className="px-4 py-2 bg-white dark:bg-gray-800 border border-primary-300 dark:border-primary-600 rounded-lg hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors"
+                >
+                  <span className="font-medium text-primary-800 dark:text-primary-200">
+                    {group.column}
+                  </span>
+                  <span className="ml-2 text-sm text-primary-600 dark:text-primary-400">
+                    ({group.values.join(' vs ')})
+                  </span>
+                </button>
+              ))}
+          </div>
+          {availableGroupingColumns.filter((g) => g.n_groups !== 2).length > 0 && (
+            <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+              <p>Columns with more than 2 groups are not supported for DIF analysis:</p>
+              <ul className="list-disc list-inside mt-1">
+                {availableGroupingColumns
+                  .filter((g) => g.n_groups !== 2)
+                  .map((g) => (
+                    <li key={g.column}>
+                      {g.column} ({g.n_groups} groups)
+                    </li>
+                  ))}
               </ul>
             </div>
           )}
+        </div>
+
+        <DIFExplanation isStudent={isStudent} isResearcher={isResearcher} />
+      </div>
+    )
+  }
+
+  if (!hasResults) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <h3 className="font-semibold text-gray-900 dark:text-white">
+              {isStudent ? 'Fairness Analysis' : 'Differential Item Functioning (DIF)'}
+            </h3>
+          </div>
+          <GroupColumnSelector
+            availableGroupingColumns={availableGroupingColumns}
+            selectedGroupColumn={selectedGroupColumn}
+            onSelect={setSelectedGroupColumn}
+          />
+        </div>
+
+        <div className="p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg">
+          <p className="text-green-800 dark:text-green-200">
+            No significant DIF detected. All items appear to function similarly across groups.
+          </p>
         </div>
       </div>
     )
   }
 
-  // Count DIF items by classification
   const difCounts = {
-    negligible: results.filter((r) => r.dif_classification === 'negligible').length,
-    slight: results.filter((r) => r.dif_classification === 'slight').length,
-    moderate: results.filter((r) => r.dif_classification === 'moderate').length,
-    large: results.filter((r) => r.dif_classification === 'large').length,
+    negligible: results.filter((r) => classificationToLabel(r.dif_classification) === 'negligible').length,
+    slight: results.filter((r) => classificationToLabel(r.dif_classification) === 'slight').length,
+    moderate: results.filter((r) => classificationToLabel(r.dif_classification) === 'moderate').length,
+    large: results.filter((r) => classificationToLabel(r.dif_classification) === 'large').length,
   }
 
   return (
@@ -202,28 +262,26 @@ export function DIFAnalysisTable({ analysisId, groupVariable = 'group' }: DIFAna
             {isStudent ? 'Fairness Analysis' : 'Differential Item Functioning (DIF)'}
           </h3>
         </div>
-        {availableGroups.length > 1 && (
-          <select
-            value={selectedGroup}
-            onChange={(e) => setSelectedGroup(e.target.value)}
-            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
-          >
-            {availableGroups.map((group) => (
-              <option key={group} value={group}>
-                {group}
-              </option>
-            ))}
-          </select>
-        )}
+        <GroupColumnSelector
+          availableGroupingColumns={availableGroupingColumns}
+          selectedGroupColumn={selectedGroupColumn}
+          onSelect={setSelectedGroupColumn}
+        />
       </div>
 
-      {/* Summary */}
+      {referenceGroup && focalGroup && (
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          Comparing <span className="font-medium">{referenceGroup}</span> (reference) vs{' '}
+          <span className="font-medium">{focalGroup}</span> (focal)
+        </div>
+      )}
+
       <div className="flex items-center space-x-4">
-        <span className={`px-3 py-1 rounded-full text-sm ${getDIFBadgeClass('negligible')}`}>
+        <span className={`px-3 py-1 rounded-full text-sm ${getDIFBadgeClass('A')}`}>
           {difCounts.negligible} negligible
         </span>
         {difCounts.slight > 0 && (
-          <span className={`px-3 py-1 rounded-full text-sm ${getDIFBadgeClass('slight')}`}>
+          <span className={`px-3 py-1 rounded-full text-sm ${getDIFBadgeClass('B')}`}>
             {difCounts.slight} slight
           </span>
         )}
@@ -233,7 +291,7 @@ export function DIFAnalysisTable({ analysisId, groupVariable = 'group' }: DIFAna
           </span>
         )}
         {difCounts.large > 0 && (
-          <span className={`px-3 py-1 rounded-full text-sm ${getDIFBadgeClass('large')}`}>
+          <span className={`px-3 py-1 rounded-full text-sm ${getDIFBadgeClass('C')}`}>
             {difCounts.large} large
           </span>
         )}
@@ -330,16 +388,18 @@ export function DIFAnalysisTable({ analysisId, groupVariable = 'group' }: DIFAna
                       {formatValue(result.dif_se)}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                      {formatValue(result.t_statistic, 2)}
+                      {formatValue(result.dif_t, 2)}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                      {result.p_value !== null ? (result.p_value < 0.001 ? '<.001' : formatValue(result.p_value)) : '-'}
+                      {result.dif_p !== null ? (result.dif_p < 0.001 ? '<.001' : formatValue(result.dif_p)) : '-'}
                     </td>
                   </>
                 )}
                 <td className="px-4 py-3 text-sm">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getDIFBadgeClass(result.dif_classification)}`}>
-                    {result.dif_classification}
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getDIFBadgeClass(result.dif_classification)}`}
+                  >
+                    {classificationToLabel(result.dif_classification)}
                   </span>
                 </td>
               </tr>
@@ -347,6 +407,66 @@ export function DIFAnalysisTable({ analysisId, groupVariable = 'group' }: DIFAna
           </tbody>
         </table>
       </div>
+    </div>
+  )
+}
+
+function GroupColumnSelector({
+  availableGroupingColumns,
+  selectedGroupColumn,
+  onSelect,
+}: {
+  availableGroupingColumns: GroupingColumnInfo[]
+  selectedGroupColumn: string | null
+  onSelect: (column: string | null) => void
+}) {
+  const validColumns = availableGroupingColumns.filter((g) => g.n_groups === 2)
+
+  if (validColumns.length <= 1) return null
+
+  return (
+    <select
+      value={selectedGroupColumn || ''}
+      onChange={(e) => onSelect(e.target.value || null)}
+      className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+    >
+      {validColumns.map((group) => (
+        <option key={group.column} value={group.column}>
+          {group.column} ({group.values.join(' vs ')})
+        </option>
+      ))}
+    </select>
+  )
+}
+
+function DIFExplanation({ isStudent, isResearcher }: { isStudent: boolean; isResearcher: boolean }) {
+  return (
+    <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+      <h4 className="font-medium text-gray-900 dark:text-white mb-2">
+        {isStudent ? 'What is Fairness Analysis?' : 'About DIF Analysis'}
+      </h4>
+      <p className="text-sm text-gray-600 dark:text-gray-400">
+        {isStudent
+          ? 'Fairness analysis checks if questions are equally fair to different groups. For example, it can detect if a question is harder for one gender compared to another, even when both groups have the same ability level.'
+          : 'Differential Item Functioning (DIF) occurs when respondents from different groups (e.g., male vs. female) with the same ability level have different probabilities of endorsing an item. DIF can indicate item bias or meaningful group differences.'}
+      </p>
+      {isResearcher && (
+        <div className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+          <p className="font-medium">DIF Classification Criteria (ETS):</p>
+          <ul className="list-disc list-inside mt-1 space-y-1">
+            <li>
+              <span className="text-green-600 dark:text-green-400">A (Negligible):</span> |DIF contrast| &lt; 0.43
+              logits
+            </li>
+            <li>
+              <span className="text-yellow-600 dark:text-yellow-400">B (Slight):</span> 0.43 ≤ |DIF| &lt; 0.64 logits
+            </li>
+            <li>
+              <span className="text-red-600 dark:text-red-400">C (Large):</span> |DIF contrast| ≥ 0.64 logits
+            </li>
+          </ul>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Download, RefreshCw, BarChart3, Table, LineChart, FileText, Layers } from 'lucide-react'
+import { Download, RefreshCw, BarChart3, Table, LineChart, FileText, Layers, Users } from 'lucide-react'
 import { Button } from '../../common/Button'
 import { Card, CardHeader, CardBody } from '../../common/Card'
 import { exportsApi } from '@/api/analysis'
@@ -16,7 +16,7 @@ import { isPolytomousModel } from '@/types'
 import type { PolytomousItemParameter } from '@/types'
 import type { WizardContext, WizardEvent } from '../WizardMachine'
 
-type TabId = 'summary' | 'parameters' | 'abilities' | 'visualizations' | 'fit' | 'category-analysis'
+type TabId = 'summary' | 'parameters' | 'abilities' | 'visualizations' | 'fit' | 'category-analysis' | 'group-comparisons'
 
 interface Tab {
   id: TabId
@@ -36,6 +36,7 @@ const polytomousTabs: Tab[] = [
   { id: 'summary', label: 'Summary', icon: FileText },
   { id: 'parameters', label: 'Item Parameters', icon: Table },
   { id: 'category-analysis', label: 'Category Analysis', icon: Layers, polytomousOnly: true },
+  { id: 'group-comparisons', label: 'Group Comparisons', icon: Users, polytomousOnly: true },
   { id: 'visualizations', label: 'Visualizations', icon: LineChart },
   { id: 'fit', label: 'Model Fit', icon: BarChart3 },
 ]
@@ -166,14 +167,15 @@ export function Results({ send, context }: ResultsProps) {
         )
 
       case 'category-analysis':
-        // Polytomous-specific category analysis
         return (
           <div className="space-y-8">
             <CategoryStructureTable analysisId={analysis.id} />
             <FitStatisticsTable analysisId={analysis.id} />
-            <DIFAnalysisTable analysisId={analysis.id} />
           </div>
         )
+
+      case 'group-comparisons':
+        return <DIFAnalysisTable analysisId={analysis.id} />
 
       case 'visualizations':
         if (isPolytomous) {

@@ -22,6 +22,43 @@ def is_binary_column(series: pd.Series) -> bool:
     return all(v in [0, 1, 0.0, 1.0] for v in unique_values)
 
 
+def is_grouping_column(col_name: str, series: pd.Series) -> bool:
+    """
+    Check if column could be used as a grouping variable for DIF analysis.
+    Grouping columns have 2-5 unique values and are not response items.
+    """
+    unique_values = series.dropna().unique()
+    n_unique = len(unique_values)
+
+    if n_unique < 2 or n_unique > 5:
+        return False
+
+    name_lower = col_name.lower()
+    grouping_keywords = [
+        "sex", "gender", "group", "condition", "treatment", "form",
+        "version", "cohort", "class", "school", "site", "location",
+        "age_group", "ethnicity", "race", "language", "grade"
+    ]
+    if any(keyword in name_lower for keyword in grouping_keywords):
+        return True
+
+    all_numeric = all(isinstance(v, (int, float, np.integer, np.floating)) for v in unique_values)
+    if all_numeric:
+        try:
+            int_values = sorted([int(v) for v in unique_values])
+            if set(int_values).issubset({0, 1, 2, 3, 4, 5}):
+                if n_unique == 2:
+                    return True
+        except (ValueError, TypeError):
+            pass
+
+    all_strings = all(isinstance(v, str) for v in unique_values)
+    if all_strings and n_unique <= 5:
+        return True
+
+    return False
+
+
 def is_ordinal_column(series: pd.Series) -> bool:
     """Check if column contains ordinal (Likert-scale) data."""
     unique_values = series.dropna().unique()
@@ -129,11 +166,14 @@ def validate_response_matrix(df: pd.DataFrame) -> dict[str, Any]:
     id_columns = []
     binary_columns = []
     ordinal_columns = []
+    grouping_columns = []
     other_columns = []
 
     for col in df.columns:
         if is_id_column(col, df[col]):
             id_columns.append(col)
+        elif is_grouping_column(col, df[col]):
+            grouping_columns.append(col)
         elif is_binary_column(df[col]):
             binary_columns.append(col)
         elif is_ordinal_column(df[col]):
@@ -153,6 +193,13 @@ def validate_response_matrix(df: pd.DataFrame) -> dict[str, Any]:
             "type": "id_columns_detected",
             "message": f"ID column(s) detected and will be excluded: {', '.join(id_columns)}",
             "columns": id_columns,
+        })
+
+    if grouping_columns:
+        warnings.append({
+            "type": "grouping_columns_detected",
+            "message": f"Grouping column(s) detected for DIF analysis: {', '.join(grouping_columns)}",
+            "columns": grouping_columns,
         })
 
     if other_columns:
@@ -217,11 +264,21 @@ def validate_response_matrix(df: pd.DataFrame) -> dict[str, Any]:
     all_issues = errors + warnings
     is_valid = len(errors) == 0
 
+    grouping_columns_info = []
+    for col in grouping_columns:
+        unique_vals = df[col].dropna().unique().tolist()
+        grouping_columns_info.append({
+            "column": col,
+            "values": unique_vals,
+            "n_groups": len(unique_vals),
+        })
+
     return {
         "is_valid": is_valid,
         "errors": all_issues if all_issues else None,
         "item_columns": item_columns,
         "id_columns": id_columns,
+        "grouping_columns": grouping_columns_info,
         "excluded_columns": other_columns,
         "response_scale": scale_info["response_scale"],
         "min_response": scale_info["min_response"],
