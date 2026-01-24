@@ -1,12 +1,12 @@
 import { useSettingsStore } from '@/store'
-import { tooltips, modelDescriptions } from '@/types/irt'
+import { tooltips, modelDescriptions, polytomousTooltips } from '@/types/irt'
 
 export function useCompetencyLevel() {
   const competencyLevel = useSettingsStore((s) => s.competencyLevel)
   const setCompetencyLevel = useSettingsStore((s) => s.setCompetencyLevel)
 
   const getTooltip = (key: string): string => {
-    const content = tooltips[key]
+    const content = tooltips[key] || polytomousTooltips[key]
     if (!content) return ''
     return content[competencyLevel]
   }
