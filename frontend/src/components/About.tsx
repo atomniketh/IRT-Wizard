@@ -1,4 +1,4 @@
-import { BookOpen, BarChart3, Brain, FileSpreadsheet, Download, Layers, Terminal, TrendingUp, Grid3X3 } from 'lucide-react'
+import { BookOpen, BarChart3, Brain, FileSpreadsheet, Download, Layers, Terminal, TrendingUp, Grid3X3, Users, HelpCircle } from 'lucide-react'
 
 interface FeatureCardProps {
   icon: React.ReactNode
@@ -113,6 +113,16 @@ export function About() {
             description="Detailed threshold analysis, category structure tables, and Rasch-Andrich threshold visualization."
           />
           <FeatureCard
+            icon={<Users className="w-5 h-5" />}
+            title="DIF Analysis"
+            description="Differential Item Functioning analysis to detect items that may function differently across demographic groups."
+          />
+          <FeatureCard
+            icon={<HelpCircle className="w-5 h-5" />}
+            title="Contextual Tooltips"
+            description="Interactive tooltips on all visualizations and tables, with explanations tailored to your competency level."
+          />
+          <FeatureCard
             icon={<Download className="w-5 h-5" />}
             title="Export Results"
             description="Download item parameters, ability estimates, and fit statistics as CSV or Excel files."
@@ -220,6 +230,36 @@ export function About() {
                 <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 font-mono">-</td>
                 <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">0.5 to 1.5</td>
                 <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">Unweighted mean square residual; sensitive to outliers and unexpected extreme responses</td>
+              </tr>
+              <tr>
+                <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">Person Separation</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 font-mono">G</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">&gt; 2.0</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">Ratio of true variance to error; indicates how many distinct ability levels can be identified</td>
+              </tr>
+              <tr>
+                <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">Person Reliability</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 font-mono">-</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">&gt; 0.80</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">Analogous to Cronbach's alpha; proportion of observed variance that is true variance</td>
+              </tr>
+              <tr>
+                <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">Item Separation</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 font-mono">G</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">&gt; 2.0</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">Spread of item difficulties relative to estimation error; indicates difficulty hierarchy reliability</td>
+              </tr>
+              <tr>
+                <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">DIF Contrast</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 font-mono">Δ</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">-0.64 to +0.64</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">Difference in item difficulty between groups; values outside range indicate potential bias (ETS criteria)</td>
+              </tr>
+              <tr>
+                <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">First Contrast Eigenvalue</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 font-mono">-</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">&lt; 2.0</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">PCAR statistic; values below 2.0 support unidimensionality assumption</td>
               </tr>
             </tbody>
           </table>
