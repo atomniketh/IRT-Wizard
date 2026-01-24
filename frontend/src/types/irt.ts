@@ -192,5 +192,50 @@ export const polytomousTooltips: Record<string, TooltipContent> = {
     student: "Shows how well each response option is working.",
     educator: "Category structure analysis. Checks if response categories are functioning properly.",
     researcher: "Andrich threshold ordering and category utilization. Disordered thresholds suggest category collapse needed."
+  },
+  category_count: {
+    student: "How many times this response option was chosen.",
+    educator: "Frequency of responses in this category. Low counts (<10) may indicate category underutilization.",
+    researcher: "Category frequency. Sparse categories (n<10) have unstable threshold estimates and may need collapsing."
+  },
+  category_percentage: {
+    student: "What percentage of all responses used this option.",
+    educator: "Proportion of total responses in this category. Ideally, all categories should be used meaningfully.",
+    researcher: "Category utilization rate. Categories with <1% may not provide useful measurement information."
+  },
+  observed_average: {
+    student: "The average ability of people who chose this response.",
+    educator: "Mean ability of respondents selecting this category. Should increase monotonically across categories.",
+    researcher: "Observed category mean (θ). Non-monotonic averages suggest category dysfunction or disordering."
+  },
+  threshold_ordering: {
+    student: "Whether the response options are working in the right order.",
+    educator: "Andrich thresholds should be monotonically increasing. Disordered thresholds indicate category problems.",
+    researcher: "Threshold ordering check. τₖ should exceed τₖ₋₁. Reversals indicate respondents cannot reliably distinguish adjacent categories."
+  },
+  dif_contrast: {
+    student: "How different the item difficulty is between groups (should be close to 0 for fair items).",
+    educator: "Difference in item difficulty between groups. Larger values suggest the item may function differently.",
+    researcher: "DIF contrast = δ_focal - δ_reference in logits. Positive values indicate item is harder for focal group."
+  },
+  dif_classification: {
+    student: "Whether the difference is small enough to ignore (A), worth noting (B), or concerning (C).",
+    educator: "ETS DIF classification: A=negligible, B=slight to moderate, C=large. C-level items warrant review.",
+    researcher: "ETS criteria: A (|Δ|<0.43), B (0.43≤|Δ|<0.64), C (|Δ|≥0.64). Also consider statistical significance."
+  },
+  reference_group: {
+    student: "The main group that other groups are compared to.",
+    educator: "The reference (baseline) group for DIF comparison. Usually the larger or majority group.",
+    researcher: "Reference group for DIF analysis. Item parameters are anchored to this group's scale."
+  },
+  focal_group: {
+    student: "The group being compared to see if items work fairly for them.",
+    educator: "The focal (comparison) group. DIF analysis tests if items function differently for this group.",
+    researcher: "Focal group whose item parameters are compared to reference. Positive DIF = harder for focal group."
+  },
+  category_distribution: {
+    student: "Shows how responses are spread across all the answer options.",
+    educator: "Visual distribution of responses. A balanced distribution suggests all categories are being used appropriately.",
+    researcher: "Category response distribution. Highly skewed distributions may indicate ceiling/floor effects or poor targeting."
   }
 }

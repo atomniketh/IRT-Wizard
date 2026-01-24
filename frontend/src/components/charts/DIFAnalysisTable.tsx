@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { ArrowUpDown, AlertTriangle, Info } from 'lucide-react'
 import { useCompetencyLevel } from '@/hooks/useCompetencyLevel'
 import { analysisApi } from '@/api/analysis'
+import { Tooltip } from '../common/Tooltip'
 import type { DIFResult, GroupingColumnInfo } from '@/types'
 
 interface DIFAnalysisTableProps {
@@ -230,6 +231,7 @@ export function DIFAnalysisTable({ analysisId }: DIFAnalysisTableProps) {
             <h3 className="font-semibold text-gray-900 dark:text-white">
               {isStudent ? 'Fairness Analysis' : 'Differential Item Functioning (DIF)'}
             </h3>
+            <Tooltip tooltipKey="dif" />
           </div>
           <GroupColumnSelector
             availableGroupingColumns={availableGroupingColumns}
@@ -329,10 +331,16 @@ export function DIFAnalysisTable({ analysisId }: DIFAnalysisTableProps) {
                 </div>
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Reference
+                <div className="flex items-center space-x-1">
+                  <span>Reference</span>
+                  <Tooltip tooltipKey="reference_group" position="bottom" />
+                </div>
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Focal
+                <div className="flex items-center space-x-1">
+                  <span>Focal</span>
+                  <Tooltip tooltipKey="focal_group" position="bottom" />
+                </div>
               </th>
               <th
                 className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -340,6 +348,7 @@ export function DIFAnalysisTable({ analysisId }: DIFAnalysisTableProps) {
               >
                 <div className="flex items-center space-x-1">
                   <span>DIF Contrast</span>
+                  <Tooltip tooltipKey="dif_contrast" position="bottom" />
                   <ArrowUpDown className="w-3 h-3" />
                 </div>
               </th>
@@ -362,6 +371,7 @@ export function DIFAnalysisTable({ analysisId }: DIFAnalysisTableProps) {
               >
                 <div className="flex items-center space-x-1">
                   <span>Classification</span>
+                  <Tooltip tooltipKey="dif_classification" position="bottom" />
                   <ArrowUpDown className="w-3 h-3" />
                 </div>
               </th>

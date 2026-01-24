@@ -168,10 +168,16 @@ export function CategoryStructureTable({ analysisId }: CategoryStructureTablePro
                 {isStudent ? 'Response' : 'Category'}
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Count
+                <div className="flex items-center space-x-1">
+                  <span>Count</span>
+                  <Tooltip tooltipKey="category_count" position="bottom" />
+                </div>
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                {isStudent ? 'Percent' : '%'}
+                <div className="flex items-center space-x-1">
+                  <span>{isStudent ? 'Percent' : '%'}</span>
+                  <Tooltip tooltipKey="category_percentage" position="bottom" />
+                </div>
               </th>
               {isResearcher && (
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -182,7 +188,10 @@ export function CategoryStructureTable({ analysisId }: CategoryStructureTablePro
                 </th>
               )}
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Status
+                <div className="flex items-center space-x-1">
+                  <span>Status</span>
+                  <Tooltip tooltipKey="threshold_ordering" position="bottom" />
+                </div>
               </th>
             </tr>
           </thead>
@@ -239,9 +248,12 @@ export function CategoryStructureTable({ analysisId }: CategoryStructureTablePro
 
       {/* Distribution bar */}
       <div className="space-y-2">
-        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          {isStudent ? 'Response Distribution' : 'Category Distribution'}
-        </h4>
+        <div className="flex items-center space-x-2">
+          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {isStudent ? 'Response Distribution' : 'Category Distribution'}
+          </h4>
+          <Tooltip tooltipKey="category_distribution" position="right" />
+        </div>
         <div className="flex h-8 rounded-lg overflow-hidden">
           {categoryStats.map((cat, index) => {
             const colors = [
