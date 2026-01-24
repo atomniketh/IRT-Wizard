@@ -108,7 +108,8 @@ def fit_polytomous_model(
                 raise TimeoutError("Model fitting timed out")
 
             # Transpose for Girth (expects items x persons)
-            data_for_girth = data_normalized.T.astype(float)
+            # Girth requires integer data for array indexing
+            data_for_girth = data_normalized.T.astype(int)
 
             # Set timeout for model fitting (60 seconds max)
             old_handler = signal.signal(signal.SIGALRM, timeout_handler)
@@ -122,28 +123,28 @@ def fit_polytomous_model(
                 signal.alarm(0)
                 signal.signal(signal.SIGALRM, old_handler)
 
-            # Extract difficulty parameters
-            difficulty = estimates["Difficulty"]
+            # Girth pcm_mml returns "Difficulty" as a 2D array (items x thresholds)
+            # containing step difficulties for each item (PCM parameterization)
+            step_difficulties = estimates["Difficulty"]  # shape: (n_items, n_categories-1)
 
-            # Extract threshold parameters
-            if "Threshold" in estimates:
-                raw_thresholds = estimates["Threshold"]
-            elif "Thresholds" in estimates:
-                raw_thresholds = estimates["Thresholds"]
-            else:
-                raw_thresholds = _estimate_thresholds_from_data(data_normalized, difficulty, n_categories)
+            # Extract item locations as the mean of each item's step difficulties
+            difficulty = np.mean(step_difficulties, axis=1)  # shape: (n_items,)
 
-            # Ensure thresholds are properly shaped
+            # Center difficulties around 0
+            difficulty = difficulty - np.mean(difficulty)
+
+            # Extract thresholds relative to item locations
             if model_type == ModelType.RSM:
-                if raw_thresholds.ndim == 2:
-                    thresholds = np.mean(raw_thresholds, axis=0)
-                else:
-                    thresholds = raw_thresholds
+                # RSM: shared thresholds across items
+                # Average the threshold patterns and center around 0
+                centered_thresholds = step_difficulties - step_difficulties.mean(axis=1, keepdims=True)
+                thresholds = np.mean(centered_thresholds, axis=0)  # shape: (n_categories-1,)
             else:
-                if raw_thresholds.ndim == 1:
-                    thresholds = np.tile(raw_thresholds, (n_items, 1))
-                else:
-                    thresholds = raw_thresholds
+                # PCM: item-specific thresholds relative to item location
+                thresholds = step_difficulties - difficulty[:, np.newaxis]  # shape: (n_items, n_categories-1)
+
+            # Use Girth's ability estimates directly
+            theta_from_girth = estimates["Ability"]
 
             converged = True
 
@@ -151,13 +152,18 @@ def fit_polytomous_model(
             print(f"Girth MML fitting failed: {e}. Using fast estimation.")
             difficulty, thresholds = _estimate_parameters_fallback(data_normalized, n_categories, model_type)
             converged = False
+            theta_from_girth = None
     else:
         # Use fast estimation (default)
         difficulty, thresholds = _estimate_parameters_fallback(data_normalized, n_categories, model_type)
         converged = True  # Fast estimation always "converges"
+        theta_from_girth = None
 
-    # Estimate person abilities using polytomous EAP
-    theta = _estimate_abilities_polytomous(data_normalized, difficulty, thresholds, model_type)
+    # Use Girth's abilities if available, otherwise estimate
+    if theta_from_girth is not None:
+        theta = theta_from_girth
+    else:
+        theta = _estimate_abilities_polytomous(data_normalized, difficulty, thresholds, model_type)
 
     # Calculate fit statistics
     infit_mnsq, outfit_mnsq, infit_zstd, outfit_zstd = compute_fit_statistics(
