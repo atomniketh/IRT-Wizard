@@ -4,7 +4,9 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
 from app.api.deps import DbSession
+from app.models.analysis import Analysis
 from app.models.project import Project
+from app.schemas.analysis import AnalysisRead
 from app.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
 
 router = APIRouter()
@@ -36,6 +38,21 @@ async def get_project(project_id: uuid.UUID, db: DbSession) -> Project:
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
+
+
+@router.get("/{project_id}/analyses", response_model=list[AnalysisRead])
+async def list_project_analyses(project_id: uuid.UUID, db: DbSession) -> list[Analysis]:
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    result = await db.execute(
+        select(Analysis)
+        .where(Analysis.project_id == project_id)
+        .order_by(Analysis.created_at.desc())
+    )
+    return list(result.scalars().all())
 
 
 @router.put("/{project_id}", response_model=ProjectRead)

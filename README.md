@@ -10,7 +10,7 @@ A web-based application for Item Response Theory (IRT) analysis, designed for ai
 - **Polytomous Models**: Rating Scale Model (RSM) and Partial Credit Model (PCM) for Likert-scale data (e.g., 1-7 scales)
 
 ### Data Import
-- CSV and TSV file upload or URL fetch
+- CSV, TSV, Excel (XLS/XLSX), and Parquet file upload or URL fetch
 - **Auto-detect response scale**: Automatically identifies binary vs. polytomous data
 - Smart model selection based on detected data type
 

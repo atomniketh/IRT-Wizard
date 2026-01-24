@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import type { Project, CompetencyLevel } from '@/types'
+import type { Project, CompetencyLevel, Analysis } from '@/types'
 
 export interface CreateProjectInput {
   name: string
@@ -36,5 +36,10 @@ export const projectsApi = {
 
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/projects/${id}`)
+  },
+
+  listAnalyses: async (projectId: string): Promise<Analysis[]> => {
+    const response = await apiClient.get(`/projects/${projectId}/analyses`)
+    return response.data
   },
 }

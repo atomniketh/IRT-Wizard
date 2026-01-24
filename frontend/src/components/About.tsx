@@ -85,7 +85,7 @@ export function About() {
           <FeatureCard
             icon={<FileSpreadsheet className="w-5 h-5" />}
             title="Flexible Data Import"
-            description="Upload CSV or TSV files directly, or fetch data from a URL. Automatic validation and column detection."
+            description="Upload CSV, TSV, Excel (XLS/XLSX), or Parquet files directly, or fetch data from a URL. Automatic validation and column detection."
           />
           <FeatureCard
             icon={<Brain className="w-5 h-5" />}
@@ -306,7 +306,7 @@ export function About() {
             <ul className="space-y-3 text-gray-600 dark:text-gray-400 text-sm">
               <li className="flex items-start">
                 <span className="text-primary-600 dark:text-primary-400 mr-2">•</span>
-                <span><strong className="text-gray-900 dark:text-white">Format:</strong> CSV/TSV with items as columns, respondents as rows</span>
+                <span><strong className="text-gray-900 dark:text-white">Format:</strong> CSV, TSV, Excel, or Parquet with items as columns, respondents as rows</span>
               </li>
               <li className="flex items-start">
                 <span className="text-primary-600 dark:text-primary-400 mr-2">•</span>
@@ -327,7 +327,7 @@ export function About() {
             <ul className="space-y-3 text-gray-600 dark:text-gray-400 text-sm">
               <li className="flex items-start">
                 <span className="text-primary-600 dark:text-primary-400 mr-2">•</span>
-                <span><strong className="text-gray-900 dark:text-white">Format:</strong> CSV/TSV with items as columns, respondents as rows</span>
+                <span><strong className="text-gray-900 dark:text-white">Format:</strong> CSV, TSV, Excel, or Parquet with items as columns, respondents as rows</span>
               </li>
               <li className="flex items-start">
                 <span className="text-primary-600 dark:text-primary-400 mr-2">•</span>

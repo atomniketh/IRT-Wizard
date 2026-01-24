@@ -25,8 +25,8 @@ async def upload_dataset(
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
-    if not file.filename.lower().endswith((".csv", ".tsv")):
-        raise HTTPException(status_code=400, detail="Only CSV and TSV files are supported")
+    if not file.filename.lower().endswith((".csv", ".tsv", ".xls", ".xlsx", ".parquet")):
+        raise HTTPException(status_code=400, detail="Only CSV, TSV, XLS, XLSX, and Parquet files are supported")
 
     content = await file.read()
     file_size = len(content)
@@ -37,10 +37,16 @@ async def upload_dataset(
             status_code=400, detail=f"File exceeds maximum size of {settings.max_upload_size_mb}MB"
         )
 
-    separator = "\t" if file.filename.lower().endswith(".tsv") else ","
-
     try:
-        df = pd.read_csv(io.BytesIO(content), sep=separator)
+        filename_lower = file.filename.lower()
+        if filename_lower.endswith(".parquet"):
+            df = pd.read_parquet(io.BytesIO(content))
+        elif filename_lower.endswith((".xls", ".xlsx")):
+            df = pd.read_excel(io.BytesIO(content))
+        elif filename_lower.endswith(".tsv"):
+            df = pd.read_csv(io.BytesIO(content), sep="\t")
+        else:
+            df = pd.read_csv(io.BytesIO(content), sep=",")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to parse file: {str(e)}")
 
@@ -57,9 +63,10 @@ async def upload_dataset(
             "message": f"{dropped_rows} empty row(s) were automatically removed from the dataset.",
         })
 
-    cleaned_content = df.to_csv(index=False, sep=separator).encode('utf-8')
+    cleaned_content = df.to_csv(index=False).encode('utf-8')
     storage = StorageService(settings)
-    file_path = await storage.upload_file(cleaned_content, file.filename, str(project_id))
+    storage_filename = file.filename.rsplit('.', 1)[0] + '.csv' if not file.filename.lower().endswith('.csv') else file.filename
+    file_path = await storage.upload_file(cleaned_content, storage_filename, str(project_id))
 
     item_names = list(df.columns)
     data_summary = {
@@ -110,13 +117,19 @@ async def fetch_dataset_from_url(
         raise HTTPException(status_code=400, detail=f"Failed to fetch URL: {str(e)}")
 
     filename = url.split("/")[-1].split("?")[0]
-    if not filename.lower().endswith((".csv", ".tsv")):
+    if not filename.lower().endswith((".csv", ".tsv", ".xls", ".xlsx", ".parquet")):
         filename = filename + ".csv"
 
-    separator = "\t" if filename.lower().endswith(".tsv") else ","
-
     try:
-        df = pd.read_csv(io.BytesIO(content), sep=separator)
+        filename_lower = filename.lower()
+        if filename_lower.endswith(".parquet"):
+            df = pd.read_parquet(io.BytesIO(content))
+        elif filename_lower.endswith((".xls", ".xlsx")):
+            df = pd.read_excel(io.BytesIO(content))
+        elif filename_lower.endswith(".tsv"):
+            df = pd.read_csv(io.BytesIO(content), sep="\t")
+        else:
+            df = pd.read_csv(io.BytesIO(content), sep=",")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to parse file: {str(e)}")
 
@@ -133,9 +146,10 @@ async def fetch_dataset_from_url(
             "message": f"{dropped_rows} empty row(s) were automatically removed from the dataset.",
         })
 
-    cleaned_content = df.to_csv(index=False, sep=separator).encode('utf-8')
+    cleaned_content = df.to_csv(index=False).encode('utf-8')
     storage = StorageService(settings)
-    file_path = await storage.upload_file(cleaned_content, filename, str(project_id))
+    storage_filename = filename.rsplit('.', 1)[0] + '.csv' if not filename.lower().endswith('.csv') else filename
+    file_path = await storage.upload_file(cleaned_content, storage_filename, str(project_id))
 
     item_names = list(df.columns)
     data_summary = {

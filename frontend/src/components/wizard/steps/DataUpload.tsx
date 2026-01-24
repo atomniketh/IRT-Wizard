@@ -84,6 +84,9 @@ export function DataUpload({ send, context }: DataUploadProps) {
     accept: {
       'text/csv': ['.csv'],
       'text/tab-separated-values': ['.tsv'],
+      'application/vnd.ms-excel': ['.xls'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'application/octet-stream': ['.parquet'],
     },
     maxFiles: 1,
   })
@@ -100,7 +103,7 @@ export function DataUpload({ send, context }: DataUploadProps) {
       <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Upload Your Data</h2>
         <p className="mt-2 text-gray-600 dark:text-gray-400">
-          Upload a CSV or TSV file with response data (rows = respondents, columns = items)
+          Upload a data file with response data (rows = respondents, columns = items)
         </p>
       </div>
 
@@ -147,7 +150,7 @@ export function DataUpload({ send, context }: DataUploadProps) {
             <p className="text-primary-600 dark:text-primary-400 font-medium">Drop your file here</p>
           ) : (
             <>
-              <p className="text-gray-600 dark:text-gray-300 font-medium">Drag & drop your CSV or TSV file here</p>
+              <p className="text-gray-600 dark:text-gray-300 font-medium">Drag & drop your data file here</p>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">or click to browse</p>
             </>
           )}
@@ -180,7 +183,7 @@ export function DataUpload({ send, context }: DataUploadProps) {
 
       <div className="text-center text-sm text-gray-500 dark:text-gray-400">
         <p>Maximum file size: 100MB</p>
-        <p>Supported formats: CSV, TSV</p>
+        <p>Supported formats: CSV, TSV, XLS, XLSX, Parquet</p>
       </div>
     </div>
   )

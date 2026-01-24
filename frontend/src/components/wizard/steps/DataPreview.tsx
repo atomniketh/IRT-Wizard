@@ -33,8 +33,8 @@ const issueDetails: Record<string, IssueInfo> = {
   },
   id_columns_detected: {
     title: 'ID Columns Detected',
-    explanation: 'Columns that appear to be identifiers (IDs, indices) were found and will be automatically excluded from analysis.',
-    fix: 'No action needed. These columns will be ignored during analysis. If a column was incorrectly identified as an ID, rename it to avoid terms like "id", "index", "respondent", "person", or "subject".',
+    explanation: 'Columns that appear to be identifiers (IDs, indices) were found and will be automatically excluded from analysis. If a column was incorrectly identified as an ID, rename it to avoid terms like "id", "index", "respondent", "person", or "subject".',
+    fix: '',
     severity: 'info',
   },
   non_binary_columns: {
@@ -63,32 +63,32 @@ const issueDetails: Record<string, IssueInfo> = {
   },
   grouping_columns_detected: {
     title: 'Group Variables Available',
-    explanation: 'Demographic grouping columns were detected and can be used for Differential Item Functioning (DIF) analysis.',
-    fix: 'No action needed. You can use these columns for group comparisons after analysis.',
+    explanation: 'Demographic grouping columns were detected and can be used for Differential Item Functioning (DIF) analysis after the main analysis is complete.',
+    fix: '',
     severity: 'info',
   },
   non_response_columns: {
     title: 'Non-Response Columns Excluded',
-    explanation: 'Some columns do not appear to be response items and will be excluded from the IRT analysis.',
-    fix: 'No action needed. These columns will be ignored during parameter estimation.',
+    explanation: 'Some columns do not appear to be response items and will be excluded from the IRT analysis. These columns will be ignored during parameter estimation.',
+    fix: '',
     severity: 'info',
   },
   polytomous_data_detected: {
     title: 'Polytomous Data Detected',
-    explanation: 'Your data contains ordinal responses with multiple categories (e.g., Likert scale).',
-    fix: 'No action needed. Use RSM or PCM models for polytomous data analysis.',
+    explanation: 'Your data contains ordinal responses with multiple categories (e.g., Likert scale). RSM or PCM models are recommended for polytomous data analysis.',
+    fix: '',
     severity: 'info',
   },
   binary_data_detected: {
     title: 'Binary Data Detected',
-    explanation: 'Your data contains binary (0/1) responses suitable for dichotomous IRT models.',
-    fix: 'No action needed. Use 1PL, 2PL, or 3PL models for binary data analysis.',
+    explanation: 'Your data contains binary (0/1) responses suitable for dichotomous IRT models. 1PL, 2PL, or 3PL models are recommended.',
+    fix: '',
     severity: 'info',
   },
   empty_rows_removed: {
     title: 'Empty Rows Removed',
-    explanation: '', // Will use dynamic message from backend
-    fix: 'No action needed. The cleaned data will be used for analysis.',
+    explanation: '', // Will use dynamic message from backend, which includes the info
+    fix: '',
     severity: 'info',
   },
 }
@@ -254,10 +254,12 @@ export function DataPreview({ send, context }: DataPreviewProps) {
                       {info.explanation || err.message}
                     </p>
 
-                    <p className={`text-sm mt-2 ${styles.text}`}>
-                      <span className="font-medium">How to fix: </span>
-                      {info.fix}
-                    </p>
+                    {info.fix && (
+                      <p className={`text-sm mt-2 ${styles.text}`}>
+                        <span className="font-medium">How to fix: </span>
+                        {info.fix}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
