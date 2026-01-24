@@ -73,7 +73,7 @@ export function TIFChart({ analysisId }: TIFChartProps) {
 
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
         <ResponsiveContainer width="100%" height={400}>
-          <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+          <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 40 }}>
             <defs>
               <linearGradient id="tifGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
@@ -85,8 +85,8 @@ export function TIFChart({ analysisId }: TIFChartProps) {
               dataKey="theta"
               label={{
                 value: isStudent ? 'Ability' : 'Theta (θ)',
-                position: 'bottom',
-                offset: 0,
+                position: 'insideBottom',
+                offset: -5,
               }}
               tickFormatter={(value) => value.toFixed(1)}
               stroke="#6b7280"
@@ -106,6 +106,9 @@ export function TIFChart({ analysisId }: TIFChartProps) {
                 name === 'information' ? 'Information' : 'SE(θ)',
               ]}
               labelFormatter={(label) => `θ = ${Number(label).toFixed(2)}`}
+              contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+              labelStyle={{ color: '#111827', fontWeight: 600 }}
+              itemStyle={{ color: '#374151' }}
             />
             <Area
               type="monotone"

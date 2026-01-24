@@ -55,6 +55,11 @@ export const tooltips: Record<string, TooltipContent> = {
     educator: "Test Information Function. Sum of all IIFs. Higher = more precise measurement.",
     researcher: "TIF = Σ I_j(θ). SE(θ) = 1/√TIF. Use for test design and targeting."
   },
+  ability_distribution: {
+    student: "Shows how scores are spread out across all test-takers.",
+    educator: "Distribution of person ability estimates. Ideally bell-shaped around 0.",
+    researcher: "Histogram of θ estimates. Check for normality, ceiling/floor effects, and adequate spread for your sample."
+  },
   se_difficulty: {
     student: "How certain we are about the difficulty value.",
     educator: "Standard error of the difficulty estimate. Smaller = more precise.",

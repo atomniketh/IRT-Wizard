@@ -186,11 +186,9 @@ export function CategoryProbabilityCurves({ analysisId, selectedItem }: Category
             <Tooltip
               formatter={(value: number, name: string) => [value.toFixed(3), name]}
               labelFormatter={(label) => `θ = ${Number(label).toFixed(2)}`}
-              contentStyle={{
-                backgroundColor: 'rgba(31, 41, 55, 0.95)',
-                border: '1px solid #374151',
-                borderRadius: '6px',
-              }}
+              contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+              labelStyle={{ color: '#111827', fontWeight: 600 }}
+              itemStyle={{ color: '#374151' }}
             />
 
             {/* Threshold reference lines - simplified labels */}

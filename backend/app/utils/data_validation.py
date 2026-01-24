@@ -26,6 +26,9 @@ def is_grouping_column(col_name: str, series: pd.Series) -> bool:
     """
     Check if column could be used as a grouping variable for DIF analysis.
     Grouping columns have 2-5 unique values and are not response items.
+
+    Important: Binary columns (0/1) should NOT be classified as grouping columns
+    unless they have a grouping-related name.
     """
     unique_values = series.dropna().unique()
     n_unique = len(unique_values)
@@ -34,6 +37,12 @@ def is_grouping_column(col_name: str, series: pd.Series) -> bool:
         return False
 
     name_lower = col_name.lower()
+
+    # Check if the column name suggests it's an item/response column
+    item_keywords = ["item", "q", "question", "response", "answer", "score"]
+    if any(keyword in name_lower for keyword in item_keywords):
+        return False
+
     grouping_keywords = [
         "sex", "gender", "group", "condition", "treatment", "form",
         "version", "cohort", "class", "school", "site", "location",
@@ -42,13 +51,18 @@ def is_grouping_column(col_name: str, series: pd.Series) -> bool:
     if any(keyword in name_lower for keyword in grouping_keywords):
         return True
 
+    # For numeric columns, only classify as grouping if NOT binary (0/1)
+    # Binary numeric columns are likely response items
     all_numeric = all(isinstance(v, (int, float, np.integer, np.floating)) for v in unique_values)
     if all_numeric:
         try:
             int_values = sorted([int(v) for v in unique_values])
-            if set(int_values).issubset({0, 1, 2, 3, 4, 5}):
-                if n_unique == 2:
-                    return True
+            # If it's binary (0,1), don't classify as grouping - it's likely a response item
+            if set(int_values) == {0, 1}:
+                return False
+            # For other numeric values with 2-5 categories (not 0/1), could be grouping
+            if set(int_values).issubset({0, 1, 2, 3, 4, 5}) and n_unique >= 3:
+                return True
         except (ValueError, TypeError):
             pass
 

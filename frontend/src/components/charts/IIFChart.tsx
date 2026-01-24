@@ -105,15 +105,15 @@ export function IIFChart({ analysisId, selectedItems }: IIFChartProps) {
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-        <ResponsiveContainer width="100%" height={400}>
-          <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+        <ResponsiveContainer width="100%" height={450}>
+          <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             <XAxis
               dataKey="theta"
               label={{
                 value: isStudent ? 'Ability' : 'Theta (θ)',
-                position: 'bottom',
-                offset: 0,
+                position: 'insideBottom',
+                offset: -10,
               }}
               tickFormatter={(value) => value.toFixed(1)}
               stroke="#6b7280"
@@ -130,8 +130,11 @@ export function IIFChart({ analysisId, selectedItems }: IIFChartProps) {
             <Tooltip
               formatter={(value: number) => value.toFixed(3)}
               labelFormatter={(label) => `θ = ${Number(label).toFixed(2)}`}
+              contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+              labelStyle={{ color: '#111827', fontWeight: 600 }}
+              itemStyle={{ color: '#374151' }}
             />
-            <Legend />
+            <Legend verticalAlign="bottom" wrapperStyle={{ paddingTop: 20 }} />
             {filteredItems.map((item, index) => (
               <Line
                 key={item.item_name}

@@ -7,6 +7,9 @@ import { ItemParametersTable } from '../../results/ItemParametersTable'
 import { PolytomousItemParametersTable } from '../../results/PolytomousItemParametersTable'
 import { ModelFitSummary } from '../../results/ModelFitSummary'
 import { ICCChart } from '../../charts/ICCChart'
+import { IIFChart } from '../../charts/IIFChart'
+import { TIFChart } from '../../charts/TIFChart'
+import { AbilityDistribution } from '../../charts/AbilityDistribution'
 import { CategoryProbabilityCurves } from '../../charts/CategoryProbabilityCurves'
 import { WrightMap } from '../../charts/WrightMap'
 import { FitStatisticsTable } from '../../charts/FitStatisticsTable'
@@ -191,6 +194,9 @@ export function Results({ send, context }: ResultsProps) {
         return (
           <div className="space-y-8">
             <ICCChart analysisId={analysis.id} />
+            <IIFChart analysisId={analysis.id} />
+            <TIFChart analysisId={analysis.id} />
+            <AbilityDistribution analysisId={analysis.id} />
           </div>
         )
 

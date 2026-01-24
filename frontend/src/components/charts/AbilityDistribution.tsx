@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import {
   BarChart,
   Bar,
@@ -8,15 +8,45 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
+import { analysisApi } from '@/api/analysis'
+import { Tooltip as HelpTooltip } from '../common/Tooltip'
 import { useCompetencyLevel } from '@/hooks/useCompetencyLevel'
 import type { AbilityEstimate } from '@/types'
 
 interface AbilityDistributionProps {
-  estimates: AbilityEstimate[]
+  analysisId?: string
+  estimates?: AbilityEstimate[]
 }
 
-export function AbilityDistribution({ estimates }: AbilityDistributionProps) {
+export function AbilityDistribution({ analysisId, estimates: propEstimates }: AbilityDistributionProps) {
+  const [fetchedEstimates, setFetchedEstimates] = useState<AbilityEstimate[]>([])
+  const [isLoading, setIsLoading] = useState(!!analysisId)
+  const [error, setError] = useState<string | null>(null)
   const { isStudent, isResearcher } = useCompetencyLevel()
+
+  useEffect(() => {
+    if (!analysisId) return
+
+    const fetchData = async () => {
+      try {
+        const data = await analysisApi.getAbilities(analysisId)
+        const persons = data.persons || []
+        setFetchedEstimates(persons.map((p: { id: string; theta: number; se?: number }) => ({
+          id: p.id,
+          theta: p.theta,
+          se: p.se
+        })))
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load ability estimates')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [analysisId])
+
+  const estimates = propEstimates || fetchedEstimates
 
   const histogramData = useMemo(() => {
     if (estimates.length === 0) return []
@@ -58,26 +88,41 @@ export function AbilityDistribution({ estimates }: AbilityDistributionProps) {
     return { mean, std, median, min: sorted[0], max: sorted[sorted.length - 1] }
   }, [estimates])
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return <div className="p-4 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg">{error}</div>
+  }
+
   if (estimates.length === 0) {
     return <div className="text-gray-500 dark:text-gray-400">No ability estimates available</div>
   }
 
   return (
     <div className="space-y-4">
-      <h3 className="font-semibold text-gray-900 dark:text-white">
-        {isStudent ? 'Distribution of Scores' : 'Ability Distribution'}
-      </h3>
+      <div className="flex items-center space-x-2">
+        <h3 className="font-semibold text-gray-900 dark:text-white">
+          {isStudent ? 'Distribution of Scores' : 'Ability Distribution'}
+        </h3>
+        <HelpTooltip tooltipKey="ability_distribution" />
+      </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
         <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={histogramData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+          <BarChart data={histogramData} margin={{ top: 20, right: 30, left: 20, bottom: 40 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             <XAxis
               dataKey="theta"
               label={{
                 value: isStudent ? 'Ability Score' : 'Theta (θ)',
-                position: 'bottom',
-                offset: 0,
+                position: 'insideBottom',
+                offset: -5,
               }}
               tickFormatter={(value) => value.toFixed(1)}
               stroke="#6b7280"
@@ -96,6 +141,9 @@ export function AbilityDistribution({ estimates }: AbilityDistributionProps) {
                 name === 'count' ? (isStudent ? 'Students' : 'Persons') : 'Percentage',
               ]}
               labelFormatter={(label) => `θ = ${Number(label).toFixed(2)}`}
+              contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+              labelStyle={{ color: '#111827', fontWeight: 600 }}
+              itemStyle={{ color: '#374151' }}
             />
             <Bar dataKey="count" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
           </BarChart>
