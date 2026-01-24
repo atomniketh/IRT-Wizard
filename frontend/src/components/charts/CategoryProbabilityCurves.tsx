@@ -6,7 +6,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts'
@@ -143,19 +142,34 @@ export function CategoryProbabilityCurves({ analysisId, selectedItem }: Category
       )}
 
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-        <ResponsiveContainer width="100%" height={400}>
-          <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+        {/* Legend above chart */}
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mb-4">
+          {Array.from({ length: nCategories }, (_, i) => (
+            <div key={`legend-${i}`} className="flex items-center space-x-1.5">
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: CATEGORY_COLORS[i % CATEGORY_COLORS.length] }}
+              />
+              <span className="text-xs text-gray-600 dark:text-gray-400">Category {i}</span>
+            </div>
+          ))}
+        </div>
+
+        <ResponsiveContainer width="100%" height={350}>
+          <LineChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 40 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
             <XAxis
               dataKey="theta"
               label={{
                 value: isStudent ? 'Ability Level' : 'Person Measure (logits)',
                 position: 'bottom',
-                offset: 0,
+                offset: 20,
+                fill: '#9ca3af',
               }}
               tickFormatter={(value) => value.toFixed(1)}
               stroke="#6b7280"
               domain={[-4, 4]}
+              tick={{ fontSize: 11 }}
             />
             <YAxis
               domain={[0, 1]}
@@ -163,29 +177,30 @@ export function CategoryProbabilityCurves({ analysisId, selectedItem }: Category
                 value: 'Probability',
                 angle: -90,
                 position: 'insideLeft',
+                fill: '#9ca3af',
               }}
               tickFormatter={(value) => value.toFixed(1)}
               stroke="#6b7280"
+              tick={{ fontSize: 11 }}
             />
             <Tooltip
               formatter={(value: number, name: string) => [value.toFixed(3), name]}
               labelFormatter={(label) => `θ = ${Number(label).toFixed(2)}`}
+              contentStyle={{
+                backgroundColor: 'rgba(31, 41, 55, 0.95)',
+                border: '1px solid #374151',
+                borderRadius: '6px',
+              }}
             />
-            <Legend />
 
-            {/* Threshold reference lines */}
+            {/* Threshold reference lines - simplified labels */}
             {thresholds.map((threshold, index) => (
               <ReferenceLine
                 key={`threshold-${index}`}
                 x={threshold}
-                stroke="#9ca3af"
-                strokeDasharray="5 5"
-                label={{
-                  value: `τ${index + 1}`,
-                  position: 'top',
-                  fill: '#6b7280',
-                  fontSize: 12,
-                }}
+                stroke="#6b7280"
+                strokeDasharray="4 4"
+                strokeWidth={1}
               />
             ))}
 

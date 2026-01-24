@@ -1,4 +1,4 @@
-import { BookOpen, BarChart3, Brain, FileSpreadsheet, Download, Layers } from 'lucide-react'
+import { BookOpen, BarChart3, Brain, FileSpreadsheet, Download, Layers, Terminal, TrendingUp, Grid3X3 } from 'lucide-react'
 
 interface FeatureCardProps {
   icon: React.ReactNode
@@ -68,9 +68,9 @@ export function About() {
       <section>
         <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">About IRT Wizard</h2>
         <p className="text-lg text-gray-600 dark:text-gray-400 max-w-3xl">
-          IRT Wizard is a web-based application for Item Response Theory analysis, designed for
-          air-gapped deployment with adaptive UI based on user competency levels. It provides
-          comprehensive tools for analyzing dichotomous response data using classical IRT models.
+          IRT Wizard is a comprehensive web-based application for Item Response Theory analysis, designed for
+          air-gapped deployment with adaptive UI based on user competency levels. It supports both
+          dichotomous (binary) and polytomous (ordinal) response data using classical and Rasch family IRT models.
         </p>
       </section>
 
@@ -85,22 +85,37 @@ export function About() {
           <FeatureCard
             icon={<FileSpreadsheet className="w-5 h-5" />}
             title="Flexible Data Import"
-            description="Upload CSV or TSV files directly, or fetch data from a URL. Automatic validation of response matrices."
+            description="Upload CSV or TSV files directly, or fetch data from a URL. Automatic validation and column detection."
           />
           <FeatureCard
             icon={<Brain className="w-5 h-5" />}
-            title="IRT Model Fitting"
-            description="Fit 1PL (Rasch), 2PL, and 3PL models using marginal maximum likelihood estimation."
+            title="Dichotomous & Polytomous Models"
+            description="Fit 1PL, 2PL dichotomous models and RSM/PCM polytomous models for Likert-scale data."
           />
           <FeatureCard
             icon={<BarChart3 className="w-5 h-5" />}
-            title="Interactive Visualizations"
-            description="Item Characteristic Curves (ICC), Item Information Functions (IIF), Test Information Function (TIF), and ability distributions."
+            title="Rich Visualizations"
+            description="ICC curves, Category Probability Curves, Wright Maps, Item/Test Information Functions, and ability distributions."
+          />
+          <FeatureCard
+            icon={<TrendingUp className="w-5 h-5" />}
+            title="Comprehensive Fit Statistics"
+            description="Infit/Outfit MNSQ and ZSTD statistics for item quality assessment with flagging of problematic items."
+          />
+          <FeatureCard
+            icon={<Terminal className="w-5 h-5" />}
+            title="Real-time Progress"
+            description="Live terminal output showing analysis progress, timing, and status updates during model fitting."
+          />
+          <FeatureCard
+            icon={<Grid3X3 className="w-5 h-5" />}
+            title="Category Analysis"
+            description="Detailed threshold analysis, category structure tables, and Rasch-Andrich threshold visualization."
           />
           <FeatureCard
             icon={<Download className="w-5 h-5" />}
             title="Export Results"
-            description="Download item parameters, ability estimates, and fit statistics as CSV files for further analysis."
+            description="Download item parameters, ability estimates, and fit statistics as CSV or Excel files."
           />
           <FeatureCard
             icon={<BookOpen className="w-5 h-5" />}
@@ -111,8 +126,10 @@ export function About() {
       </section>
 
       <section>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Implemented Models</h2>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Supported Models</h2>
+
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Dichotomous Models (Binary 0/1 Data)</h3>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
           <ModelCard
             name="1PL (Rasch) Model"
             formula="P(X=1|θ) = 1 / (1 + exp(-(θ - b)))"
@@ -135,6 +152,24 @@ export function About() {
             available={false}
           />
         </div>
+
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Polytomous Models (Ordinal/Likert Data)</h3>
+        <div className="grid gap-6 md:grid-cols-2">
+          <ModelCard
+            name="Rating Scale Model (RSM)"
+            formula="P(Xᵢⱼ=k|θ) ∝ exp(Σₘ(θ-βᵢ-τₘ))"
+            parameters={['β (item difficulty)', 'τ (shared thresholds)']}
+            description="Rasch model for rating scales where all items share the same threshold structure. Ideal for Likert scales with consistent response categories across items."
+            available={true}
+          />
+          <ModelCard
+            name="Partial Credit Model (PCM)"
+            formula="P(Xᵢⱼ=k|θ) ∝ exp(Σₘ(θ-βᵢ-τᵢₘ))"
+            parameters={['β (item difficulty)', 'τᵢ (item-specific thresholds)']}
+            description="Extends RSM by allowing each item to have unique threshold parameters. More flexible for items with different category structures."
+            available={true}
+          />
+        </div>
       </section>
 
       <section>
@@ -152,27 +187,39 @@ export function About() {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               <tr>
                 <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">Difficulty</td>
-                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 font-mono">b</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 font-mono">b, β</td>
                 <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">-3 to +3</td>
-                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">Location on the ability scale where P(correct) = 0.5 (for 1PL/2PL)</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">Item location on the ability scale; higher values = harder items</td>
               </tr>
               <tr>
                 <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">Discrimination</td>
                 <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 font-mono">a</td>
                 <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">0.5 to 2.5</td>
-                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">Slope of the ICC at the difficulty point; higher = better differentiation</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">Slope of the ICC at the difficulty point; higher = better differentiation (2PL only)</td>
               </tr>
               <tr>
-                <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">Guessing</td>
-                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 font-mono">c</td>
-                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">0 to 0.35</td>
-                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">Probability of correct response at very low ability (lower asymptote)</td>
+                <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">Threshold</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 font-mono">τ</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">-3 to +3</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">Andrich threshold - point where adjacent categories are equally likely (RSM/PCM)</td>
               </tr>
               <tr>
                 <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">Ability</td>
                 <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 font-mono">θ</td>
                 <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">-3 to +3</td>
                 <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">Latent trait estimate for each person; standardized with mean=0, SD=1</td>
+              </tr>
+              <tr>
+                <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">Infit MNSQ</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 font-mono">-</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">0.5 to 1.5</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">Information-weighted mean square residual; sensitive to unexpected patterns near ability level</td>
+              </tr>
+              <tr>
+                <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">Outfit MNSQ</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 font-mono">-</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">0.5 to 1.5</td>
+                <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">Unweighted mean square residual; sensitive to outliers and unexpected extreme responses</td>
               </tr>
             </tbody>
           </table>
@@ -207,29 +254,49 @@ export function About() {
 
       <section className="pb-8">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Data Requirements</h2>
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <ul className="space-y-3 text-gray-600 dark:text-gray-400">
-            <li className="flex items-start">
-              <span className="text-primary-600 dark:text-primary-400 mr-2">•</span>
-              <span><strong className="text-gray-900 dark:text-white">Format:</strong> CSV or TSV files with items as columns and respondents as rows</span>
-            </li>
-            <li className="flex items-start">
-              <span className="text-primary-600 dark:text-primary-400 mr-2">•</span>
-              <span><strong className="text-gray-900 dark:text-white">Response values:</strong> Binary (0/1) for dichotomous items</span>
-            </li>
-            <li className="flex items-start">
-              <span className="text-primary-600 dark:text-primary-400 mr-2">•</span>
-              <span><strong className="text-gray-900 dark:text-white">Minimum items:</strong> At least 2 binary columns required</span>
-            </li>
-            <li className="flex items-start">
-              <span className="text-primary-600 dark:text-primary-400 mr-2">•</span>
-              <span><strong className="text-gray-900 dark:text-white">Recommended sample size:</strong> 200+ respondents for stable parameter estimates</span>
-            </li>
-            <li className="flex items-start">
-              <span className="text-primary-600 dark:text-primary-400 mr-2">•</span>
-              <span><strong className="text-gray-900 dark:text-white">Missing data:</strong> Missing values are treated as incorrect (0)</span>
-            </li>
-          </ul>
+        <div className="grid gap-6 md:grid-cols-2">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Dichotomous Models (1PL, 2PL)</h3>
+            <ul className="space-y-3 text-gray-600 dark:text-gray-400 text-sm">
+              <li className="flex items-start">
+                <span className="text-primary-600 dark:text-primary-400 mr-2">•</span>
+                <span><strong className="text-gray-900 dark:text-white">Format:</strong> CSV/TSV with items as columns, respondents as rows</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-primary-600 dark:text-primary-400 mr-2">•</span>
+                <span><strong className="text-gray-900 dark:text-white">Response values:</strong> Binary (0/1) only</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-primary-600 dark:text-primary-400 mr-2">•</span>
+                <span><strong className="text-gray-900 dark:text-white">Minimum:</strong> At least 2 binary columns</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-primary-600 dark:text-primary-400 mr-2">•</span>
+                <span><strong className="text-gray-900 dark:text-white">Sample size:</strong> 200+ respondents recommended</span>
+              </li>
+            </ul>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Polytomous Models (RSM, PCM)</h3>
+            <ul className="space-y-3 text-gray-600 dark:text-gray-400 text-sm">
+              <li className="flex items-start">
+                <span className="text-primary-600 dark:text-primary-400 mr-2">•</span>
+                <span><strong className="text-gray-900 dark:text-white">Format:</strong> CSV/TSV with items as columns, respondents as rows</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-primary-600 dark:text-primary-400 mr-2">•</span>
+                <span><strong className="text-gray-900 dark:text-white">Response values:</strong> Ordinal integers (e.g., 0-4 for 5-point scale)</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-primary-600 dark:text-primary-400 mr-2">•</span>
+                <span><strong className="text-gray-900 dark:text-white">Categories:</strong> 3-15 response categories per item</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-primary-600 dark:text-primary-400 mr-2">•</span>
+                <span><strong className="text-gray-900 dark:text-white">Sample size:</strong> 200+ respondents recommended</span>
+              </li>
+            </ul>
+          </div>
         </div>
       </section>
     </div>
