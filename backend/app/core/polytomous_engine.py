@@ -157,7 +157,21 @@ def fit_polytomous_model(
             else:
                 thresholds = step_difficulties - difficulty[:, np.newaxis]
 
-            theta_from_estimation = estimates["Ability"]
+            girth_theta = estimates["Ability"]
+
+            raw_scores = np.nansum(data_normalized, axis=1)
+            max_score = n_items * (n_categories - 1)
+            prop_scores = np.clip(raw_scores / max_score, 0.02, 0.98)
+            target_theta = np.log(prop_scores / (1 - prop_scores))
+
+            if np.std(girth_theta) > 0.01:
+                theta_from_estimation = (
+                    (girth_theta - np.mean(girth_theta)) / np.std(girth_theta)
+                    * np.std(target_theta) + np.mean(target_theta)
+                )
+            else:
+                theta_from_estimation = target_theta
+
             converged = True
 
         except Exception as e:
