@@ -346,7 +346,7 @@ def _estimate_jmle(
     Joint Maximum Likelihood Estimation (JMLE) for RSM/PCM.
 
     This produces fit statistics closer to Winsteps/RUMM2030 than MML estimation.
-    Uses simple proportional estimation with light iteration on item difficulties.
+    Uses adaptive scaling to handle ceiling/floor effects properly.
 
     Args:
         data: Response matrix (n_persons x n_items), 0-indexed categories
@@ -361,16 +361,40 @@ def _estimate_jmle(
     n_persons, n_items = data.shape
     n_thresholds = n_categories - 1
     k_values = np.arange(n_categories)
+    max_category = n_categories - 1
 
     difficulty, thresholds = _estimate_parameters_fallback(data, n_categories, model_type)
 
     raw_scores = np.nansum(data, axis=1)
-    max_score = n_items * (n_categories - 1)
-    prop_scores = np.clip(raw_scores / max_score, 0.01, 0.99)
+    max_score = n_items * max_category
+    min_score = 0
+
+    mean_score = np.mean(raw_scores)
+    mean_prop = mean_score / max_score
+
+    is_ceiling = mean_prop > 0.7
+    is_floor = mean_prop < 0.3
+
+    prop_scores = raw_scores / max_score
+    prop_scores = np.clip(prop_scores, 0.02, 0.98)
     theta = np.log(prop_scores / (1 - prop_scores))
-    theta = (theta - np.mean(theta)) / (np.std(theta) + 0.01) * 1.5
+
+    theta_std = np.std(theta)
+    theta_mean = np.mean(theta)
+
+    if is_ceiling or is_floor:
+        if theta_std > 0.01:
+            theta = (theta - theta_mean) / theta_std
+        theta = theta + theta_mean * 0.5
+        theta = np.clip(theta, -3.0, 3.0)
+    else:
+        if theta_std > 0.01:
+            theta = (theta - theta_mean) / theta_std * 1.5
+        theta = theta - np.mean(theta)
+        theta = np.clip(theta, -3.0, 3.0)
 
     converged = False
+    step_size = 0.2 if (is_ceiling or is_floor) else 0.3
 
     for iteration in range(max_iter):
         old_difficulty = difficulty.copy()
@@ -388,15 +412,19 @@ def _estimate_jmle(
                 item_thresh = thresholds if model_type == ModelType.RSM else thresholds[j]
                 probs = np.array([compute_category_probability(theta[i], difficulty[j], item_thresh, k)
                                   for k in range(n_categories)])
+                probs = probs / (np.sum(probs) + 1e-10)
+
                 exp_val = np.sum(k_values * probs)
                 exp_sq = np.sum((k_values ** 2) * probs)
-                variance = max(exp_sq - exp_val ** 2, 0.001)
+                variance = max(exp_sq - exp_val ** 2, 0.1)
 
                 exp_sum += exp_val
                 info_sum += variance
 
             if info_sum > 0.1:
-                difficulty[j] = difficulty[j] - 0.3 * (obs_sum - exp_sum) / info_sum
+                update = step_size * (obs_sum - exp_sum) / info_sum
+                update = np.clip(update, -0.3, 0.3)
+                difficulty[j] = difficulty[j] - update
 
         difficulty = difficulty - np.mean(difficulty)
 
