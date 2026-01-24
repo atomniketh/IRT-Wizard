@@ -22,7 +22,10 @@ async def get_accessible_experiment_ids(
     db: DbSession,
     user: CurrentUser,
     organization: CurrentOrganization,
-) -> set[str]:
+) -> set[str] | None:
+    if user.is_superuser:
+        return None
+
     if organization:
         query = select(Experiment.mlflow_experiment_id).where(
             Experiment.owner_organization_id == organization.id
@@ -65,8 +68,11 @@ async def check_experiment_access(
     if not experiment:
         raise HTTPException(status_code=404, detail="Experiment not found")
 
+    if user.is_superuser:
+        return experiment
+
     accessible_ids = await get_accessible_experiment_ids(db, user, organization)
-    if mlflow_experiment_id not in accessible_ids:
+    if accessible_ids is not None and mlflow_experiment_id not in accessible_ids:
         raise HTTPException(status_code=403, detail="Access denied to this experiment")
 
     return experiment
@@ -88,11 +94,13 @@ async def list_experiments(
 
     result = []
     for exp in mlflow_experiments:
-        if exp.experiment_id not in accessible_ids:
+        if accessible_ids is not None and exp.experiment_id not in accessible_ids:
             continue
 
         db_experiment = await get_experiment_by_mlflow_id(db, exp.experiment_id)
         if not db_experiment:
+            if user.is_superuser:
+                continue
             continue
 
         runs = client.search_runs(

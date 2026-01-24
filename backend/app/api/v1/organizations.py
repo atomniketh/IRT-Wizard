@@ -28,6 +28,22 @@ async def list_organizations(
     db: DbSession,
     current_user: CurrentUser,
 ) -> list[OrganizationListItem]:
+    if current_user.is_superuser:
+        result = await db.execute(
+            select(Organization).where(Organization.is_active == True)
+        )
+        organizations = result.scalars().all()
+        return [
+            OrganizationListItem(
+                id=org.id,
+                slug=org.slug,
+                name=org.name,
+                role="superuser",
+                created_at=org.created_at,
+            )
+            for org in organizations
+        ]
+
     result = await db.execute(
         select(OrganizationMembership)
         .options(
