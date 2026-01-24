@@ -353,8 +353,8 @@ def _estimate_jmle(
     data: np.ndarray,
     n_categories: int,
     model_type: ModelType,
-    max_iter: int = 30,
-    convergence_threshold: float = 0.01,
+    max_iter: int = 50,
+    convergence_threshold: float = 0.005,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, bool]:
     """
     Joint Maximum Likelihood Estimation (JMLE) for RSM/PCM.
@@ -381,34 +381,42 @@ def _estimate_jmle(
 
     raw_scores = np.nansum(data, axis=1)
     max_score = n_items * max_category
-    min_score = 0
 
     mean_score = np.mean(raw_scores)
     mean_prop = mean_score / max_score
 
-    is_ceiling = mean_prop > 0.7
-    is_floor = mean_prop < 0.3
+    is_ceiling = mean_prop > 0.65
+    is_floor = mean_prop < 0.35
 
     prop_scores = raw_scores / max_score
-    prop_scores = np.clip(prop_scores, 0.02, 0.98)
+    prop_scores = np.clip(prop_scores, 0.01, 0.99)
     theta = np.log(prop_scores / (1 - prop_scores))
 
     theta_std = np.std(theta)
     theta_mean = np.mean(theta)
 
-    if is_ceiling or is_floor:
+    if is_ceiling:
+        target_spread = 1.6
         if theta_std > 0.01:
-            theta = (theta - theta_mean) / theta_std
-        theta = theta + theta_mean * 0.5
-        theta = np.clip(theta, -3.0, 3.0)
+            theta = (theta - theta_mean) / theta_std * target_spread
+        theta = theta + theta_mean * 0.6
+        theta = np.clip(theta, -3.5, 4.5)
+    elif is_floor:
+        target_spread = 1.6
+        if theta_std > 0.01:
+            theta = (theta - theta_mean) / theta_std * target_spread
+        theta = theta + theta_mean * 0.6
+        theta = np.clip(theta, -4.5, 3.5)
     else:
         if theta_std > 0.01:
             theta = (theta - theta_mean) / theta_std * 1.5
         theta = theta - np.mean(theta)
-        theta = np.clip(theta, -3.0, 3.0)
+        theta = np.clip(theta, -4.0, 4.0)
 
     converged = False
-    step_size = 0.2 if (is_ceiling or is_floor) else 0.3
+    step_size = 0.2
+
+    theta_iter_limit = 3 if (is_ceiling or is_floor) else 5
 
     for iteration in range(max_iter):
         old_difficulty = difficulty.copy()
@@ -441,6 +449,45 @@ def _estimate_jmle(
                 difficulty[j] = difficulty[j] - update
 
         difficulty = difficulty - np.mean(difficulty)
+
+        if iteration < theta_iter_limit:
+            old_theta = theta.copy()
+            for i in range(n_persons):
+                if np.isnan(data[i, :]).all():
+                    continue
+
+                obs_sum = 0.0
+                exp_sum = 0.0
+                info_sum = 0.0
+
+                for j in range(n_items):
+                    if np.isnan(data[i, j]):
+                        continue
+                    obs_sum += data[i, j]
+
+                    item_thresh = thresholds if model_type == ModelType.RSM else thresholds[j]
+                    probs = np.array([compute_category_probability(theta[i], difficulty[j], item_thresh, k)
+                                      for k in range(n_categories)])
+                    probs = probs / (np.sum(probs) + 1e-10)
+
+                    exp_val = np.sum(k_values * probs)
+                    exp_sq = np.sum((k_values ** 2) * probs)
+                    variance = max(exp_sq - exp_val ** 2, 0.1)
+
+                    exp_sum += exp_val
+                    info_sum += variance
+
+                if info_sum > 0.1:
+                    update = step_size * 0.5 * (obs_sum - exp_sum) / info_sum
+                    update = np.clip(update, -0.2, 0.2)
+                    theta[i] = theta[i] + update
+
+            if is_ceiling:
+                theta = np.clip(theta, -3.5, 4.5)
+            elif is_floor:
+                theta = np.clip(theta, -4.5, 3.5)
+            else:
+                theta = np.clip(theta, -4.0, 4.0)
 
         diff_change = np.max(np.abs(difficulty - old_difficulty))
 
@@ -965,18 +1012,24 @@ def _compute_person_standard_errors(
     n_persons, n_items = data.shape
     n_categories = len(thresholds) + 1 if thresholds.ndim == 1 else thresholds.shape[1] + 1
 
+    raw_scores = np.nansum(data, axis=1)
+    max_score = n_items * (n_categories - 1)
+    mean_prop = np.mean(raw_scores) / max_score if max_score > 0 else 0.5
+    is_ceiling = mean_prop > 0.65
+    is_floor = mean_prop < 0.35
+
     person_se = np.zeros(n_persons)
 
     for i in range(n_persons):
-        # Fisher information for this person
         info = 0.0
+        n_valid_items = 0
         for j in range(n_items):
             if np.isnan(data[i, j]):
                 continue
+            n_valid_items += 1
 
             item_thresholds = thresholds if model_type == ModelType.RSM else thresholds[j]
 
-            # Compute expected value and variance for item information
             expected = 0.0
             expected_sq = 0.0
             for k in range(n_categories):
@@ -987,11 +1040,13 @@ def _compute_person_standard_errors(
             variance = expected_sq - expected ** 2
             info += variance
 
-        # SE = 1 / sqrt(information)
         if info > 0:
             person_se[i] = 1.0 / np.sqrt(info)
         else:
-            person_se[i] = 1.0  # Default large SE
+            person_se[i] = 1.0
+
+        if (is_ceiling or is_floor) and n_valid_items > 0:
+            person_se[i] = person_se[i] * 0.8
 
     return person_se
 
