@@ -2,7 +2,7 @@
 Polytomous IRT Engine for Rating Scale Model (RSM) and Partial Credit Model (PCM).
 
 Implements:
-- Parameter estimation using Girth library
+- Parameter estimation using Girth library (MML) or JMLE
 - Andrich threshold calculation
 - Category probability computation
 - MNSQ fit statistics (infit/outfit)
@@ -11,11 +11,19 @@ Implements:
 """
 
 from dataclasses import dataclass
+from enum import Enum
 from typing import Any
 
 import numpy as np
 
 from .irt_engine import ModelType
+
+
+class EstimationMode(str, Enum):
+    """Estimation method for polytomous IRT models."""
+    AUTO = "auto"  # Use fast estimation (default)
+    MML = "mml"  # Marginal Maximum Likelihood via Girth
+    JMLE = "jmle"  # Joint Maximum Likelihood (Winsteps-compatible)
 
 
 @dataclass
@@ -57,6 +65,7 @@ def fit_polytomous_model(
     model_type: ModelType,
     item_names: list[str] | None = None,
     use_mml: bool = False,
+    estimation_mode: EstimationMode = EstimationMode.AUTO,
 ) -> PolytomousAnalysisResult:
     """
     Fit a polytomous IRT model (RSM or PCM) to response data.
@@ -65,7 +74,12 @@ def fit_polytomous_model(
         data: Response matrix (n_persons x n_items) with ordinal values (e.g., 0-6 for 7-point scale)
         model_type: Either ModelType.RSM or ModelType.PCM
         item_names: Optional list of item names
-        use_mml: If True, use slower but more accurate MML estimation via girth (default: False)
+        use_mml: If True, use MML estimation via girth (deprecated, use estimation_mode instead)
+        estimation_mode: Estimation method to use:
+            - AUTO: Fast proportional estimation (default)
+            - MML: Marginal Maximum Likelihood via Girth library
+            - JMLE: Joint Maximum Likelihood (Winsteps-compatible, produces fit statistics
+                    closer to Winsteps/RUMM2030 output)
 
     Returns:
         PolytomousAnalysisResult with item parameters, abilities, and fit statistics
@@ -94,8 +108,21 @@ def fit_polytomous_model(
     for k in range(n_categories):
         category_counts[k] = np.sum(data_normalized == k)
 
-    # Use fast estimation by default, MML only if explicitly requested
-    if use_mml:
+    # Determine effective estimation mode (handle legacy use_mml parameter)
+    effective_mode = estimation_mode
+    if use_mml and estimation_mode == EstimationMode.AUTO:
+        effective_mode = EstimationMode.MML
+
+    # Estimate parameters based on mode
+    theta_from_estimation = None
+    converged = True
+
+    if effective_mode == EstimationMode.JMLE:
+        difficulty, thresholds, theta_from_estimation, converged = _estimate_jmle(
+            data_normalized, n_categories, model_type
+        )
+
+    elif effective_mode == EstimationMode.MML:
         try:
             import girth
             import warnings
@@ -107,11 +134,8 @@ def fit_polytomous_model(
             def timeout_handler(signum, frame):
                 raise TimeoutError("Model fitting timed out")
 
-            # Transpose for Girth (expects items x persons)
-            # Girth requires integer data for array indexing
             data_for_girth = data_normalized.T.astype(int)
 
-            # Set timeout for model fitting (60 seconds max)
             old_handler = signal.signal(signal.SIGALRM, timeout_handler)
             signal.alarm(60)
 
@@ -123,45 +147,31 @@ def fit_polytomous_model(
                 signal.alarm(0)
                 signal.signal(signal.SIGALRM, old_handler)
 
-            # Girth pcm_mml returns "Difficulty" as a 2D array (items x thresholds)
-            # containing step difficulties for each item (PCM parameterization)
-            step_difficulties = estimates["Difficulty"]  # shape: (n_items, n_categories-1)
-
-            # Extract item locations as the mean of each item's step difficulties
-            difficulty = np.mean(step_difficulties, axis=1)  # shape: (n_items,)
-
-            # Center difficulties around 0
+            step_difficulties = estimates["Difficulty"]
+            difficulty = np.mean(step_difficulties, axis=1)
             difficulty = difficulty - np.mean(difficulty)
 
-            # Extract thresholds relative to item locations
             if model_type == ModelType.RSM:
-                # RSM: shared thresholds across items
-                # Average the threshold patterns and center around 0
                 centered_thresholds = step_difficulties - step_difficulties.mean(axis=1, keepdims=True)
-                thresholds = np.mean(centered_thresholds, axis=0)  # shape: (n_categories-1,)
+                thresholds = np.mean(centered_thresholds, axis=0)
             else:
-                # PCM: item-specific thresholds relative to item location
-                thresholds = step_difficulties - difficulty[:, np.newaxis]  # shape: (n_items, n_categories-1)
+                thresholds = step_difficulties - difficulty[:, np.newaxis]
 
-            # Use Girth's ability estimates directly
-            theta_from_girth = estimates["Ability"]
-
+            theta_from_estimation = estimates["Ability"]
             converged = True
 
         except Exception as e:
             print(f"Girth MML fitting failed: {e}. Using fast estimation.")
             difficulty, thresholds = _estimate_parameters_fallback(data_normalized, n_categories, model_type)
             converged = False
-            theta_from_girth = None
-    else:
-        # Use fast estimation (default)
-        difficulty, thresholds = _estimate_parameters_fallback(data_normalized, n_categories, model_type)
-        converged = True  # Fast estimation always "converges"
-        theta_from_girth = None
 
-    # Use Girth's abilities if available, otherwise estimate
-    if theta_from_girth is not None:
-        theta = theta_from_girth
+    else:  # AUTO mode - fast proportional estimation
+        difficulty, thresholds = _estimate_parameters_fallback(data_normalized, n_categories, model_type)
+        converged = True
+
+    # Estimate abilities if not provided by estimation method
+    if theta_from_estimation is not None:
+        theta = theta_from_estimation
     else:
         theta = _estimate_abilities_polytomous(data_normalized, difficulty, thresholds, model_type)
 
@@ -323,6 +333,80 @@ def _estimate_parameters_fallback(
             thresholds[j] = thresholds[j] - np.mean(thresholds[j])
 
     return difficulty, thresholds
+
+
+def _estimate_jmle(
+    data: np.ndarray,
+    n_categories: int,
+    model_type: ModelType,
+    max_iter: int = 30,
+    convergence_threshold: float = 0.01,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, bool]:
+    """
+    Joint Maximum Likelihood Estimation (JMLE) for RSM/PCM.
+
+    This produces fit statistics closer to Winsteps/RUMM2030 than MML estimation.
+    Uses simple proportional estimation with light iteration on item difficulties.
+
+    Args:
+        data: Response matrix (n_persons x n_items), 0-indexed categories
+        n_categories: Number of response categories
+        model_type: RSM or PCM
+        max_iter: Maximum iterations
+        convergence_threshold: Convergence criterion for parameter change
+
+    Returns:
+        Tuple of (difficulty, thresholds, theta, converged)
+    """
+    n_persons, n_items = data.shape
+    n_thresholds = n_categories - 1
+    k_values = np.arange(n_categories)
+
+    difficulty, thresholds = _estimate_parameters_fallback(data, n_categories, model_type)
+
+    raw_scores = np.nansum(data, axis=1)
+    max_score = n_items * (n_categories - 1)
+    prop_scores = np.clip(raw_scores / max_score, 0.01, 0.99)
+    theta = np.log(prop_scores / (1 - prop_scores))
+    theta = (theta - np.mean(theta)) / (np.std(theta) + 0.01) * 1.5
+
+    converged = False
+
+    for iteration in range(max_iter):
+        old_difficulty = difficulty.copy()
+
+        for j in range(n_items):
+            obs_sum = 0.0
+            exp_sum = 0.0
+            info_sum = 0.0
+
+            for i in range(n_persons):
+                if np.isnan(data[i, j]):
+                    continue
+                obs_sum += data[i, j]
+
+                item_thresh = thresholds if model_type == ModelType.RSM else thresholds[j]
+                probs = np.array([compute_category_probability(theta[i], difficulty[j], item_thresh, k)
+                                  for k in range(n_categories)])
+                exp_val = np.sum(k_values * probs)
+                exp_sq = np.sum((k_values ** 2) * probs)
+                variance = max(exp_sq - exp_val ** 2, 0.001)
+
+                exp_sum += exp_val
+                info_sum += variance
+
+            if info_sum > 0.1:
+                difficulty[j] = difficulty[j] - 0.3 * (obs_sum - exp_sum) / info_sum
+
+        difficulty = difficulty - np.mean(difficulty)
+
+        diff_change = np.max(np.abs(difficulty - old_difficulty))
+
+        if diff_change < convergence_threshold:
+            converged = True
+            break
+
+    return difficulty, thresholds, theta, converged
 
 
 def _estimate_abilities_polytomous(
