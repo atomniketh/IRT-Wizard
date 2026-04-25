@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { ArrowUpDown, ChevronDown, ChevronRight } from 'lucide-react'
 import { Tooltip } from '../common/Tooltip'
 import { useCompetencyLevel } from '@/hooks/useCompetencyLevel'
@@ -151,9 +151,8 @@ export function PolytomousItemParametersTable({ items, modelType }: PolytomousIt
               const hasThresholds = item.thresholds && item.thresholds.length > 0
 
               return (
-                <>
+                <Fragment key={item.name || index}>
                   <tr
-                    key={item.name || index}
                     className={`hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${
                       isExpanded ? 'bg-gray-50 dark:bg-gray-800' : ''
                     }`}
@@ -193,7 +192,7 @@ export function PolytomousItemParametersTable({ items, modelType }: PolytomousIt
                   </tr>
                   {/* Expanded threshold details */}
                   {isExpanded && hasThresholds && (
-                    <tr key={`${item.name}-thresholds`} className="bg-gray-50 dark:bg-gray-800/50">
+                    <tr className="bg-gray-50 dark:bg-gray-800/50">
                       <td colSpan={isResearcher ? 7 : 5} className="px-4 py-3">
                         <div className="ml-8 p-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
                           <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -223,7 +222,7 @@ export function PolytomousItemParametersTable({ items, modelType }: PolytomousIt
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               )
             })}
           </tbody>
