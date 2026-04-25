@@ -139,7 +139,8 @@ def run_analysis_task(
             return
 
         project = session.get(Project, analysis.project_id)
-        project_name = project.name if project else "IRT-Analyses"
+        raw_project_name = project.name if project else "IRT-Analyses"
+        project_name = raw_project_name.replace("/", "-")
 
         analysis.status = "running"
         analysis.started_at = datetime.utcnow()
