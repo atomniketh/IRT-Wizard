@@ -78,11 +78,11 @@ function ExperimentList({
         ) : (
           experiments.map((exp) => (
             <button
-              key={exp.experiment_id}
-              onClick={() => onSelect(exp.experiment_id)}
+              key={exp.mlflow_experiment_id}
+              onClick={() => onSelect(exp.mlflow_experiment_id)}
               className={clsx(
                 'w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors',
-                selectedId === exp.experiment_id && 'bg-primary-50 dark:bg-primary-900/20'
+                selectedId === exp.mlflow_experiment_id && 'bg-primary-50 dark:bg-primary-900/20'
               )}
             >
               <div className="flex items-center justify-between">
@@ -528,7 +528,7 @@ export function MLflowViewer() {
   }
 
   const handleSelectExperiment = (experimentId: string) => {
-    const exp = experiments.find((e) => e.experiment_id === experimentId)
+    const exp = experiments.find((e) => e.mlflow_experiment_id === experimentId)
     setViewState({ type: 'runs', experimentId, experimentName: exp?.name || 'Experiment' })
     loadRuns(experimentId)
   }
@@ -569,7 +569,7 @@ export function MLflowViewer() {
           if (viewState.type === 'compare') {
             const exp = experiments[0]
             if (exp) {
-              setViewState({ type: 'runs', experimentId: exp.experiment_id, experimentName: exp.name })
+              setViewState({ type: 'runs', experimentId: exp.mlflow_experiment_id, experimentName: exp.name })
             } else {
               setViewState({ type: 'experiments' })
             }
@@ -585,9 +585,9 @@ export function MLflowViewer() {
         run={runDetail}
         onBack={() => {
           setRunDetail(null)
-          const exp = experiments.find(e => e.experiment_id === runDetail.experiment_id)
+          const exp = experiments.find(e => e.mlflow_experiment_id === runDetail.experiment_id)
           if (exp) {
-            setViewState({ type: 'runs', experimentId: exp.experiment_id, experimentName: exp.name })
+            setViewState({ type: 'runs', experimentId: exp.mlflow_experiment_id, experimentName: exp.name })
           } else {
             setViewState({ type: 'experiments' })
           }

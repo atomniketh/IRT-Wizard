@@ -1,7 +1,8 @@
 import { apiClient } from './client'
 
 export interface MLflowExperiment {
-  experiment_id: string
+  id: string
+  mlflow_experiment_id: string
   name: string
   artifact_location: string
   lifecycle_stage: string
