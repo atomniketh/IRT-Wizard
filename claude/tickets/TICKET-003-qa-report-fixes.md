@@ -60,6 +60,6 @@ Medium
 Done
 
 ## Notes
-- Original QA-REPORT.md and all screenshots live in the **parent** `qa-screenshots/` directory (outside this repo's git tracking) since they predate the QA work landing in this repo. The implementation plan that codifies the work is committed at `docs/plans/2026-04-25-qa-report-fixes.md`.
+- QA-REPORT.md, all screenshots, and the synthetic CSV fixtures used to drive the wizard live in `qa-screenshots/` at the repo root. The implementation plan that codifies the fix work is at `docs/plans/2026-04-25-qa-report-fixes.md`.
 - Working tree clean as of `550c1d6`.
 - Backend port-shift convention now consistent: backend 8002, frontend 3002, MLflow 5002, Postgres 5433. Backend `.env` was the source of truth; the dev-compose file was brought into alignment.
