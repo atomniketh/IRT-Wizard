@@ -34,7 +34,7 @@ export default function CreateOrganization() {
     try {
       const org = await organizationsApi.create({ name, slug, description: description || undefined })
       await fetchOrganizations()
-      setCurrentOrganization({ id: org.id, name: org.name, slug: org.slug, role: 'owner' })
+      setCurrentOrganization({ id: org.id, name: org.name, slug: org.slug, role: 'owner', created_at: org.created_at })
       navigate(`/org/${org.slug}/settings`)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to create organization'

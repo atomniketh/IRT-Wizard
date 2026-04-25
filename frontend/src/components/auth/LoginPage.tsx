@@ -8,7 +8,7 @@ import { Card } from '@/components/common/Card'
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const { login, setOrganizations, setIsLoading } = useAuthStore()
+  const { login, setOrganizations } = useAuthStore()
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoggingIn, setIsLoggingIn] = useState(false)
