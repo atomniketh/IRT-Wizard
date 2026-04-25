@@ -72,7 +72,7 @@ export function ItemParametersTable({ items, modelType }: ItemParametersTablePro
       ? items.filter(
           (it) =>
             it.guessing != null &&
-            (Math.abs(it.guessing - 0.33) < 0.001 || it.guessing === 0)
+            (Math.abs(it.guessing - 0.33) < 0.001 || it.guessing < 1e-4)
         ).length
       : 0
   const showGuessingWarning =
