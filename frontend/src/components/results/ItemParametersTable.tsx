@@ -67,8 +67,28 @@ export function ItemParametersTable({ items, modelType }: ItemParametersTablePro
     return '-'
   }
 
+  const collapsedGuessingCount =
+    modelType === '3PL'
+      ? items.filter(
+          (it) =>
+            it.guessing != null &&
+            (Math.abs(it.guessing - 0.33) < 0.001 || it.guessing === 0)
+        ).length
+      : 0
+  const showGuessingWarning =
+    modelType === '3PL' && items.length > 0 && collapsedGuessingCount / items.length >= 0.5
+
   return (
-    <div className="overflow-x-auto">
+    <div className="space-y-3">
+      {showGuessingWarning && (
+        <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 p-3">
+          <p className="text-sm text-amber-800 dark:text-amber-200">
+            <strong>Heads up:</strong> {collapsedGuessingCount} of {items.length} items returned the default guessing value
+            (0.33 or 0). 3PL typically needs ~500+ respondents to identify <code>c</code> reliably; consider 1PL or 2PL on this dataset.
+          </p>
+        </div>
+      )}
+      <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
         <thead className="bg-gray-50 dark:bg-gray-800">
           <tr>
@@ -160,6 +180,7 @@ export function ItemParametersTable({ items, modelType }: ItemParametersTablePro
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   )
 }
