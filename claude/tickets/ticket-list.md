@@ -24,6 +24,7 @@ _No high priority tickets_
 _No low priority tickets yet_
 
 ## Completed Tickets
+- 🟢 [TICKET-003](./TICKET-003-qa-report-fixes.md) - QA-Report Fixes Pass (Completed: 2026-04-25)
 - 🟢 [TICKET-002](./TICKET-002-rasch-polytomous-implementation.md) - Implement Rasch Polytomous Model Support and Paper-Aligned Visualizations (Completed: 2026-01-23)
 
 ## Cancelled/Archived Tickets
