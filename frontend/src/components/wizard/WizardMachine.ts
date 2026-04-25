@@ -22,6 +22,7 @@ export type WizardEvent =
   | { type: 'ANALYSIS_FAILED'; error: string }
   | { type: 'BACK' }
   | { type: 'RESET' }
+  | { type: 'BACK_TO_MODEL' }
   | { type: 'GO_TO_STEP'; step: string }
 
 export const wizardMachine = createMachine({
@@ -115,6 +116,15 @@ export const wizardMachine = createMachine({
           { guard: ({ event }) => event.step === 'dataUpload', target: 'dataUpload' },
           { guard: ({ event }) => event.step === 'modelSelection', target: 'modelSelection' },
         ],
+        BACK_TO_MODEL: {
+          target: 'modelSelection',
+          actions: assign({
+            modelType: null,
+            analysisConfig: null,
+            analysis: null,
+            error: null,
+          }),
+        },
         RESET: {
           target: 'competencySelection',
           actions: assign({

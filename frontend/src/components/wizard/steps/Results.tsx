@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Download, RefreshCw, BarChart3, Table, LineChart, FileText, Layers, Users } from 'lucide-react'
+import { Download, RefreshCw, BarChart3, Table, LineChart, FileText, Layers, Users, Sliders } from 'lucide-react'
 import { Button } from '../../common/Button'
 import { Card, CardHeader, CardBody } from '../../common/Card'
 import { exportsApi } from '@/api/analysis'
@@ -224,9 +224,13 @@ export function Results({ send, context }: ResultsProps) {
           <p className="text-gray-600 dark:text-gray-400">{analysis.name}</p>
         </div>
         <div className="flex space-x-2">
+          <Button variant="primary" onClick={() => send({ type: 'BACK_TO_MODEL' })}>
+            <Sliders className="w-4 h-4 mr-2" />
+            Fit Different Model
+          </Button>
           <Button variant="outline" onClick={() => send({ type: 'RESET' })}>
             <RefreshCw className="w-4 h-4 mr-2" />
-            New Analysis
+            Start Over
           </Button>
         </div>
       </div>
