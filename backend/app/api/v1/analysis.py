@@ -27,6 +27,7 @@ from app.core.polytomous_engine import (
 )
 from app.models.analysis import Analysis
 from app.models.dataset import Dataset
+from app.models.experiment import Experiment
 from app.models.project import Project
 from app.schemas.analysis import AnalysisCreate, AnalysisRead, AnalysisStatus
 from app.services.permissions import PermissionServiceDep
@@ -63,6 +64,34 @@ async def _get_analysis_with_access(
 
     await permissions.require_project_access(analysis.project, permission_code)
     return analysis
+
+
+def ensure_experiment_ownership(
+    session: Any,
+    mlflow_experiment_id: str,
+    name: str,
+    project: Project,
+) -> Experiment:
+    existing = session.execute(
+        select(Experiment).where(Experiment.mlflow_experiment_id == mlflow_experiment_id)
+    ).scalar_one_or_none()
+    if existing is not None:
+        return existing
+
+    experiment = Experiment(
+        id=uuid.uuid4(),
+        mlflow_experiment_id=mlflow_experiment_id,
+        name=name,
+        description=None,
+        owner_user_id=project.owner_user_id if project.owner_user_id else None,
+        owner_organization_id=(
+            project.owner_organization_id if project.owner_organization_id else None
+        ),
+    )
+    session.add(experiment)
+    session.commit()
+    session.refresh(experiment)
+    return experiment
 
 
 def run_analysis_task(
@@ -199,13 +228,32 @@ def run_analysis_task(
 
             experiment = mlflow.get_experiment_by_name(project_name)
             if experiment is None:
-                mlflow.create_experiment(
+                mlflow_experiment_id = mlflow.create_experiment(
                     project_name,
                     tags={
                         "mlflow.note.content": f"IRT analyses for project: {project_name}. Tracks 1PL, 2PL, 3PL, RSM, and PCM model runs."
                     }
                 )
+            else:
+                mlflow_experiment_id = experiment.experiment_id
             mlflow.set_experiment(project_name)
+
+            if project is not None:
+                try:
+                    ensure_experiment_ownership(
+                        session,
+                        mlflow_experiment_id=str(mlflow_experiment_id),
+                        name=project_name,
+                        project=project,
+                    )
+                except Exception as ownership_error:
+                    session.rollback()
+                    log_to_db(
+                        session,
+                        analysis,
+                        f"Could not record experiment ownership: {ownership_error}",
+                        "warning",
+                    )
             with mlflow.start_run(run_name=f"{model_type}_{analysis_id}") as run:
                 mlflow.set_tag("mlflow.note.content", f"{model_type} IRT model analysis on {dataset.original_filename or dataset.name}")
                 mlflow.log_param("project_name", project_name)
