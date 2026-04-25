@@ -50,6 +50,23 @@ export function ItemParametersTable({ items, modelType }: ItemParametersTablePro
   const showDiscrimination = modelType !== '1PL' && !isPolytomous
   const showGuessing = modelType === '3PL'
 
+  const seUnavailableTooltip =
+    "Standard errors aren't available for this model — observed-information SEs require larger samples (~500+ respondents)."
+
+  const renderSeCell = (value: number | null | undefined) => {
+    if (value !== null && value !== undefined) {
+      return formatValue(value)
+    }
+    if (modelType === '3PL') {
+      return (
+        <Tooltip content={seUnavailableTooltip} position="top">
+          <span className="italic">N/A</span>
+        </Tooltip>
+      )
+    }
+    return '-'
+  }
+
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -131,12 +148,12 @@ export function ItemParametersTable({ items, modelType }: ItemParametersTablePro
               )}
               {isResearcher && (
                 <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                  {formatValue(item.se_difficulty)}
+                  {renderSeCell(item.se_difficulty)}
                 </td>
               )}
               {isResearcher && showDiscrimination && (
                 <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                  {formatValue(item.se_discrimination)}
+                  {renderSeCell(item.se_discrimination)}
                 </td>
               )}
             </tr>

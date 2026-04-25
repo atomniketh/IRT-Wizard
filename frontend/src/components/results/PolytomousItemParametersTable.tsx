@@ -57,6 +57,25 @@ export function PolytomousItemParametersTable({ items, modelType }: PolytomousIt
     return value.toFixed(decimals)
   }
 
+  const seUnavailableTooltip =
+    "Standard errors aren't available for this model — observed-information SEs require larger samples (~500+ respondents)."
+
+  const isPolytomous = modelType === 'RSM' || modelType === 'PCM'
+
+  const renderSeCell = (value: number | null | undefined) => {
+    if (value !== null && value !== undefined) {
+      return formatValue(value)
+    }
+    if (isPolytomous) {
+      return (
+        <Tooltip content={seUnavailableTooltip} position="top">
+          <span className="italic">N/A</span>
+        </Tooltip>
+      )
+    }
+    return '-'
+  }
+
   const getMnsqStatus = (value: number | null): string => {
     if (value === null) return ''
     if (value < 0.5 || value > 2.0) return 'text-red-600 dark:text-red-400'
@@ -176,7 +195,7 @@ export function PolytomousItemParametersTable({ items, modelType }: PolytomousIt
                     </td>
                     {isResearcher && (
                       <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                        {formatValue(item.se_difficulty)}
+                        {renderSeCell(item.se_difficulty)}
                       </td>
                     )}
                     <td className={`px-4 py-3 text-sm ${getMnsqStatus(item.infit_mnsq)}`}>
@@ -214,11 +233,18 @@ export function PolytomousItemParametersTable({ items, modelType }: PolytomousIt
                               </div>
                             ))}
                           </div>
-                          {item.se_thresholds && (
+                          {item.se_thresholds ? (
                             <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                               SE: {item.se_thresholds.map((se) => se?.toFixed(3) || '-').join(', ')}
                             </div>
-                          )}
+                          ) : isPolytomous ? (
+                            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-1">
+                              <span>SE:</span>
+                              <Tooltip content={seUnavailableTooltip} position="top">
+                                <span className="italic">N/A</span>
+                              </Tooltip>
+                            </div>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
