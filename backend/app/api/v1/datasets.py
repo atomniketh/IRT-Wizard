@@ -112,8 +112,8 @@ async def upload_dataset(
 
     item_names = list(df.columns)
     data_summary = {
-        "mean_scores": df.mean().to_dict() if validation_result["is_valid"] else None,
-        "item_counts": df.sum().to_dict() if validation_result["is_valid"] else None,
+        "mean_scores": df.mean(numeric_only=True).to_dict() if validation_result["is_valid"] else None,
+        "item_counts": df.sum(numeric_only=True).to_dict() if validation_result["is_valid"] else None,
         "missing_count": df.isna().sum().to_dict(),
     }
 
@@ -200,8 +200,8 @@ async def fetch_dataset_from_url(
 
     item_names = list(df.columns)
     data_summary = {
-        "mean_scores": df.mean().to_dict() if validation_result["is_valid"] else None,
-        "item_counts": df.sum().to_dict() if validation_result["is_valid"] else None,
+        "mean_scores": df.mean(numeric_only=True).to_dict() if validation_result["is_valid"] else None,
+        "item_counts": df.sum(numeric_only=True).to_dict() if validation_result["is_valid"] else None,
         "missing_count": df.isna().sum().to_dict(),
     }
 
