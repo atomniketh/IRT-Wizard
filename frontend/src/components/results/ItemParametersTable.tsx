@@ -32,9 +32,8 @@ export function ItemParametersTable({ items, modelType }: ItemParametersTablePro
     const bValue = b[sortField]
 
     if (typeof aValue === 'string' && typeof bValue === 'string') {
-      return sortDirection === 'asc'
-        ? aValue.localeCompare(bValue)
-        : bValue.localeCompare(aValue)
+      const cmp = aValue.localeCompare(bValue, undefined, { numeric: true })
+      return sortDirection === 'asc' ? cmp : -cmp
     }
 
     const aNum = Number(aValue) || 0
